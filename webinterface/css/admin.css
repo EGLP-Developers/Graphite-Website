@@ -1,0 +1,52 @@
+#admin-settings{
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(calc(100% / 5), calc(100% / 5)));
+	box-sizing: border-box;
+	gap: 15px;
+	user-select: none;
+}
+
+#admin-settings > div{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 5px;
+	background-color: var(--primary-color);
+	height: 275px;
+	cursor: pointer;
+	border-radius: 3px;
+	gap: 15px;
+}
+
+#admin-settings > div[disabled="true"]{
+	cursor: not-allowed;
+}
+
+#admin-settings > div > a{
+	color: #fff;
+	font-size: 13px;
+	opacity: .7;
+}
+
+.task{
+	display: flex;
+	align-items: center;
+	font-size: 14px;
+	color: #fff;
+	margin-bottom: 10px;
+	padding: 7px 15px;
+	user-select: none;
+}
+
+.task:hover{
+	background-color: var(--primary-color);
+	transition: all .3s ease-in-out;
+}
+
+.task-restart{
+	margin-left: auto;
+	text-transform: uppercase;
+	color: var(--red);
+	cursor: pointer;
+}

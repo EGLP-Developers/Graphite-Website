@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/twitter.css">
+		
+		<script>
+			var twitterUsers = [];
+			var globalTwitterUsers = {};
+			var selectedChannel = null;
+			var strContainer = document.getElementById("users");
+			var defaultEmbedColor = "#1D9BF0";
+
+			var inpIdx = 2;
+			var colorIdx = 8;
+			var colorLblIdx = 9;
+			var space = "20px";
+				
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('TWITTER')) return;
+				if(!checkModuleEnabled('TWITTER')) return;
+
+				twitterUsers = await TwitterUser.getTwitterUsers();
+
+				for(let user of twitterUsers){
+					globalTwitterUsers[user.getID()] = user;
+					strContainer.appendChild(twitterUserItem(user));
+				}
+			});
+
+			function twitterUserItem(user){
+				let tUsr = document.createElement("div");
+				tUsr.classList.add("twitter-user-item");
+				tUsr.id = user.getID();
+				tUsr.addEventListener('click', () => applyTwitterUser(user.getID()));
+
+				let tUsrImg = document.createElement("img");
+				tUsrImg.setAttribute("src", user.getProfileImageURL());
+				tUsr.appendChild(tUsrImg);
+
+				let content = document.createElement("div");
+				content.classList.add("twitter-user-content");
+				tUsr.appendChild(content);
+
+				let name = document.createElement("a");
+				name.classList.add("twitter-username");
+				name.innerText = user.getName();
+				name.addEventListener('click', () => event.stopPropagation());
+				content.appendChild(name);
+
+				let channel = document.createElement("a");
+				let tc = textchannels.find(t => t.getID() == user.getNotificationChannel());
+				channel.text = (tc != null ? tc.getName() : "");
+				content.appendChild(channel);
+
+				let actions = document.createElement("div");
+				actions.classList.add("twitter-user-actions");
+				tUsr.appendChild(actions);
+
+				let delImage = document.createElement("img");
+				delImage.setAttribute("src", "../img/trash.svg");
+				delImage.addEventListener('click', async () => {
+					event.stopPropagation();
+						
+					let dialog = new Dialog();
+
+					dialog.addHeader(new DialogHeader()
+						.setTitle("Remove twitter user")
+						.setSubtitle("This action is irreversible! Are you sure?"));
+
+					let btnYes = new UIButton("Yes");
+					btnYes.setStyle("background-color: var(--red);");
+					btnYes.onInteract(() => {
+						TwitterUser.removeTwitterUser(user.getID());
+						delete globalTwitterUsers[user.getID()];
+						tUsr.remove();
+						dialog.close();
+						showAlert("Twitter user removed");
+					});
+
+					let btnNo = new UIButton("No");
+					btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+					btnNo.onInteract(() => dialog.close());
+
+					dialog.addField(new DialogEmptyField()
+						.addUIElement(btnYes)
+						.addUIElement(btnNo)
+						.setStyle("flex-direction: row;"));
+				});
+				actions.appendChild(delImage);
+
+				return tUsr;
+			}
+
+			function applyTwitterUser(usrID){
+				let dynamicSite = new DynamicSite();
+
+				let channelDropdown = new UIDropdown()
+					.addTextChannels((textchannel, element) => selectedChannel = textchannel.getID())
+					.addNewsChannels((newschannel, element) => selectedChannel = newschannel.getID())
+					.selectFirst((element) => selectedChannel = element.getAttribute("value"));
+
+				dynamicSite.addHeader(new DynamicSiteHeader()
+					.setTitle("Add twitter user")
+					.onSave(async () => {
+						let usr = document.getElementById("twitter-user-input");
+						let embedColor = document.getElementById("ui-color-picker-input");
+
+						if(checkCondition(usr.value.trim().length == 0, "Please enter a twitter user")) return;
+						if(checkCondition(!/^[a-zA-Z0-9][\w]{3,24}$/.test(usr.value), "Invalid username")) return;
+						if(checkCondition(selectedChannel == null, "Please select a notification channel")) return;
+						if(checkCondition(!isValidHexColor(embedColor.value), "Invalid color")) return;
+
+						let dataID = usr.getAttribute("data-id");
+
+						let user = (dataID == null ? await TwitterUser.addTwitterUser(usr.value, selectedChannel) : globalTwitterUsers[dataID]);
+						if(user == null) return;
+						if(dataID == null) user = (globalTwitterUsers[user.getID()] = user);
+
+						user.setNotificationChannel(selectedChannel);
+						user.setColor(hexToDecimal(embedColor.value));
+
+						TwitterUser.updateTwitterUser(user);
+
+						if(dataID != null){
+							let el = document.getElementById(dataID);
+							strContainer.replaceChild(twitterUserItem(user), el);
+						}else{
+							strContainer.appendChild(twitterUserItem(user));
+						}
+
+						dynamicSite.close();
+						showAlert(dataID == null ? "Successfully added twitter user" : "Successfully edit twitter user");
+					}));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Twitter user")
+					.setSubtitle("About which twitter user we should notify you")
+					.addUIElement(new UIInput()
+						.setID("twitter-user-input")
+						.setPlaceholder("Twitter username...")));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Notification channel")
+					.addUIElement(channelDropdown));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Embed color")
+					.addUIElement(new UIColorPicker()
+						.setValue(defaultEmbedColor)));
+
+				if(usrID){
+					let usr = document.getElementById("twitter-user-input");
+					let embedColor = document.getElementById("ui-color-picker-input");
+					let embedColorLabel = document.getElementById("ui-color-picker-label");
+
+					let user = globalTwitterUsers[usrID];
+
+					usr.value = user.getName();
+					usr.setAttribute("data-id", user.getID());
+					usr.setAttribute("disabled", true);
+
+					channelDropdown.findElementByAttribute("value", user.getNotificationChannel());
+					selectedChannel = user.getNotificationChannel();
+
+					embedColor.value = getHexColor(user.getColor());
+					embedColorLabel.style.borderLeft = "5px solid " + embedColor.value;
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Twitter</h1>
+				<a>Get notified if one or more of your favorite Twitter users post something new</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('TWITTER')">Disable</a>
+		</div>
+		<div id="add-user">
+			<a>By adding more users Graphite will send a message in a pre-defined channel of your choice</a>
+			<button onclick="applyTwitterUser()">Add user</button>
+		</div>
+		<div id="added-users">
+			<a>Twitter user</a>
+			<div id="users"></div>
+		</div>
+	</body>
+</html>

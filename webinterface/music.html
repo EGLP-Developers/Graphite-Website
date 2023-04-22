@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/music.css">
+
+		<script>
+			var queue = [];
+			var playlists = [];
+
+			var currentTrack;
+			var currentState;
+			var interval;
+
+			var bassBoost = document.getElementById("track-bassboost");
+			var pitch = document.getElementById("track-pitch");
+			var speed = document.getElementById("track-speed");
+
+			var playBtn = document.getElementById("play-btn");
+			var durationText = document.getElementById("track-duration");
+			var positionText = document.getElementById("track-position");
+			var loopingBtn = document.getElementById("looping-btn");
+			var endless = document.getElementById("play-endless");
+
+			var queueList = document.getElementById("queue-list");
+			var playlistList = document.getElementById("playlist-list");
+			var noteContainer = document.getElementById("note-container");
+
+			var title = document.getElementById("music-player-title");
+			var author = document.getElementById("music-player-author");
+			var image = document.getElementById("music-player-image");
+
+			var volume = document.getElementById("track-volume");
+
+			var enterTrack = document.getElementById("track-add");
+			var trackSearch = document.getElementById("track-search");
+
+			var nextBtn = document.getElementById("next-btn");
+			var previousBtn = document.getElementById("previous-btn");
+			//var posSlider = document.getElementById("audio-range");
+			var position = 0;
+			var duration = 0;
+
+			var emptyQueueNote;
+
+			baseLoaded(async () => {
+				if(!checkFeatureEnabled('MUSIC')) return;
+				if(!checkModuleEnabled('MUSIC')) return;
+
+				//Queue empty
+				emptyQueueNote = new UINote("Empty queue", "There are currently no tracks that I can play for you").build();
+				noteContainer.appendChild(emptyQueueNote);
+
+				//Webinterface handler
+				initWebinterfaceHandler();
+
+				//Input filter
+				initInputFilter();
+				
+				//Init queue
+				queue = await MusicPlayerState.getFullQueue();
+				loadQueueItems();
+
+				//Init playlists
+				playlists = await MusicPlayerState.getPlaylists();
+				loadPlaylistItems();
+
+				//Init player state
+				currentState = await MusicPlayerState.getCurrentPlayerState();
+				initPlayerState();
+
+				//Init current track
+				currentTrack = await MusicPlayerState.getCurrentPlayingTrack();
+				initCurrentPlayingTrack();
+			});
+
+			function searchQueue(){
+				for(let child of document.getElementsByClassName("queue-item-title")){
+					child.parentElement.parentElement.style.display = (child.text.toLowerCase().includes(trackSearch.value.toLowerCase()) ? "flex" : "none");
+				}
+			}
+
+			function addToQueue(){
+				enterTrack.value.split(",").forEach((t) => MusicPlayerState.playTrack(t));
+				enterTrack.value = "";
+				enterTrack.blur();
+			}
+
+			function loadQueueItems(){
+				$(emptyQueueNote).toggle(queue.length == 0);
+
+				for(let track of queue){
+					let item = document.createElement("div");
+					item.classList.add("queue-item");
+					item.addEventListener('click', () => {
+						let idx = Array.from(item.parentElement.children).indexOf(item);
+						MusicPlayerState.jumpTo(idx);
+					});
+
+					if(track.getType() != null && track.getType() == "YOUTUBE"){
+						let img = document.createElement("img");
+						img.src = "https://i.ytimg.com/vi/" + track.getIdentifier() + "/hqdefault.jpg";
+						item.appendChild(img);
+					}
+
+					let text = document.createElement("div");
+					text.classList.add("queue-item-text");
+					item.appendChild(text);
+
+					let title = document.createElement("a");
+					title.classList.add("queue-item-title");
+					title.text = track.getTitle();
+					text.appendChild(title);
+
+					let author = document.createElement("a");
+					author.classList.add("queue-item-author");
+					author.text = track.getAuthor();
+					text.appendChild(author);
+
+					let delImg = document.createElement("img");
+					delImg.classList.add("queue-item-remove");
+					delImg.addEventListener('click', () => {
+						event.stopPropagation();
+						let idx = Array.from(item.parentElement.children).indexOf(item);
+						removeArrayElement(queue, queue[idx]);
+						MusicPlayerState.removeTrack(idx);
+						item.remove();
+					});
+					delImg.setAttribute("alt", "Delete");
+					delImg.setAttribute("src", "/img/trash.svg");
+					item.appendChild(delImg);
+
+					queueList.appendChild(item);
+				}
+			}
+
+			function loadPlaylistItems(){
+				for(let playlist of playlists){
+					let item = document.createElement("div");
+					item.classList.add("playlist-item");
+					item.addEventListener('click', () => {
+						let d = new Dialog("Saved tracks");
+
+						d.addHeader(new DialogHeader()
+							.setTitle("Saved tracks")
+							.setSubtitle("Playlist: " + playlist.getName()));
+
+						for(let track of playlist.getTracks()){
+							let f = new DialogEmptyField();
+							let e = document.createElement("a");
+							e.classList.add("playlist-saved-track");
+							e.text = track.getTitle() + " [" + track.getFriendlyDuration() + "]";
+							f.addElement(e);
+							d.addField(f);
+						}
+					});
+
+					let title = document.createElement("input");
+					title.classList.add("playlist-item-title");
+					title.addEventListener('click', () => event.stopPropagation());
+					title.addEventListener('change', () => {
+						event.stopPropagation();
+						if(title.value.trim().length == 0) {
+							title.value = playlist.getName();
+							return;
+						}
+						MusicPlayerState.renamePlaylist(playlist.getName(), title.value);
+						playlist.name = title.value;
+						title.blur();
+					});
+					title.value = playlist.getName();
+					item.appendChild(title);
+
+					let actions = document.createElement("div");
+
+					let play = document.createElement("img");
+					play.addEventListener('click', () => {
+						event.stopPropagation();
+						MusicPlayerState.playPlaylist(playlist.getName());
+						toggleTab();
+					});
+					play.setAttribute("alt", "Play");
+					play.setAttribute("src", "/img/Music/play.svg");
+					actions.appendChild(play);
+
+					let delImg = document.createElement("img");
+					delImg.addEventListener('click', () => {
+						event.stopPropagation();
+						let idx = Array.from(item.parentElement.children).indexOf(item);
+						removeArrayElement(playlists, playlists[idx]);
+						MusicPlayerState.deletePlaylist(playlist.getName());
+						item.remove();
+					});
+					delImg.setAttribute("alt", "Delete");
+					delImg.setAttribute("src", "/img/trash.svg");
+					actions.appendChild(delImg);
+
+					item.appendChild(actions);
+
+					playlistList.appendChild(item);
+				}
+			}
+
+			function initWebinterfaceHandler(){
+				Webinterface.registerCustomHandler("stopMusic", () => {
+					if(window.location.hash == "#music") reloadTab();
+				});
+
+				Webinterface.registerCustomHandler("updateQueue", async packet => {
+					queue = await MusicPlayerState.getFullQueue();
+					while(queueList.firstChild) queueList.removeChild(queueList.firstChild);
+					loadQueueItems();
+					if(currentState != null) highlightTrackInQueue(currentState.getCurrentIndex());
+				});
+
+				Webinterface.registerCustomHandler("updatePlaylists", async packet => {
+					playlists = await MusicPlayerState.getPlaylists();
+					while(playlistList.firstChild) playlistList.removeChild(playlistList.firstChild);
+					loadPlaylistItems();
+				});
+
+				Webinterface.registerCustomHandler("updatePlayerState", async packet => {
+					currentState = await MusicPlayerState.getCurrentPlayerState();
+					initPlayerState();
+					playerInterval();
+				});
+
+				Webinterface.registerCustomHandler("updatePlayingTrack", async packet => {
+					currentTrack = await MusicPlayerState.getCurrentPlayingTrack();
+					currentState = await MusicPlayerState.getCurrentPlayerState();
+
+					initCurrentPlayingTrack();
+					if(currentState != null) highlightTrackInQueue(currentState.getCurrentIndex());
+					initPlayerState();
+				});
+
+				Webinterface.registerCustomHandler("updatePosition", packet => {
+					position = packet.getData().position / 1000;
+				});
+			}
+
+			function initInputFilter(){
+				let intPattern = /^\d*?\d*$/;
+				let floatPattern = /^\d{0,2}(\.\d{0,2}){0,1}$/;
+
+				setInputFilter(volume, (value) => {
+					return intPattern.test(value);
+				});
+
+				setInputFilter(bassBoost, (value) => {
+					return intPattern.test(value);
+				});
+				
+				setInputFilter(pitch, (value) => {
+					return floatPattern.test(value);
+				});
+				
+				setInputFilter(speed, (value) => {
+					return floatPattern.test(value);
+				});
+			}
+
+			function initPlayerState(){
+				if(currentState == null) return;
+
+				endless.classList.toggle("endless", currentState.isEndless());
+				endless.text = currentState.isEndless() ? "Playing in endless mode" : "Play endless";
+
+				loopingBtn.src = "/img/Music/" + (currentState.isLooping() ? "repeat_on.svg" : "repeat.svg");
+
+				playBtn.src = "/img/Music/" + (currentState.isPaused() ? "play.svg" : "pause.svg");
+
+				volume.value = currentState.getVolume();
+				volume.style.animation = volume.value == 300 ? "rainbow 2s linear infinite" : "none";
+
+				bassBoost.value = currentState.getBassBoostLevel();
+
+				pitch.value = currentState.getPitch();
+
+				speed.value = currentState.getSpeed();
+			}
+
+			function initCurrentPlayingTrack(){
+				if(currentTrack == null) return;
+
+				highlightTrackInQueue(currentState.getCurrentIndex());
+
+				title.text = currentTrack.getTitle();
+				title.href = currentTrack.getURI();
+
+				author.text = currentTrack.getAuthor();
+
+				if(currentTrack.getType() != null && currentTrack.getType() == "YOUTUBE") {
+					image.src = "https://i.ytimg.com/vi/" + currentTrack.getIdentifier() + "/hqdefault.jpg";
+				}else{
+					image.src = "data:image/png;base64,R0lGODlhFAAUAIAAAP///wAAACH5BAEAAAAALAAAAAAUABQAAAIRhI+py+0Po5y02ouz3rz7rxUAOw==";
+				}
+
+				let trackDuration = currentTrack.getDuration();
+				let trackPosition = currentState.getPosition();
+
+				durationText.text = getTimestamp(trackDuration);
+				positionText.text = getTimestamp(trackPosition);
+
+				position = Math.floor(trackPosition / 1000);
+				duration = Math.floor(trackDuration / 1000);
+
+				/*posSlider.min = 0;
+				posSlider.max = trackDuration / 1000;
+				posSlider.value = trackPosition / 1000;
+				posSlider.onchange = () => {
+					if(posSlider.value == 0){
+						jump(true);
+						return;
+					}
+					if(posSlider.value == (trackDuration / 1000)){
+						jump(false);
+						return;
+					}
+					MusicPlayerState.seek(parseInt(posSlider.value) * 1000);
+				}*/
+
+				playerInterval();
+			}
+
+			function playerInterval(){
+				clearInterval(interval);
+
+				interval = setInterval(() => {
+					if(currentState == null) return;
+					if(currentState.isPaused()) return;
+					if(currentState.isLooping() && (position == duration)){
+						position = 0;
+						return;
+					}
+					position++;
+					positionText.text = getTimestamp(position * 1000);
+				}, 1000  / currentState.getSpeed());
+			}
+
+			function playTrackByIndex(index){
+				currentTrack = queue[index];
+				initCurrentPlayingTrack();
+			}
+
+			function jump(previous){
+				let idx = parseInt(currentState.getCurrentIndex() + (previous ? -1 : +1));
+				MusicPlayerState.jumpTo(idx);
+				playTrackByIndex(idx);
+			}
+
+			function setVolume(){
+				let min = 0;
+				let max = 100;
+				let earrape = 300;
+
+				if(volume.value.trim() == ""){
+					volume.value = currentState.getVolume();
+					return;
+				}
+
+				let fVal = parseInt(volume.value);
+				if((fVal < min || fVal > max) && fVal != earrape) {
+					showAlert("Volume needs to be in the range from " + min + " to " + max, true);
+					return;
+				}
+				if(fVal == earrape) initPlayerState();
+				MusicPlayerState.setVolume(fVal);
+				volume.blur();
+			}
+
+			function setBassBoost(){
+				let min = 0;
+				let max = 3;
+
+				if(bassBoost.value.trim() == ""){
+					bassBoost.value = currentState.getBassBoostLevel();
+					return;
+				}
+
+				let fVal = parseInt(bassBoost.value);
+				if(fVal < min || fVal > max) {
+					showAlert("Bassboost needs to be in the range from " + min + " to " + max, true);
+					return;
+				}
+				MusicPlayerState.setBassBoostLevel(fVal);
+				bassBoost.blur();
+			}
+
+			function setSpeed(){
+				let min = 0.25;
+				let max = 5.0;
+
+				if(speed.value.trim() == ""){
+					speed.value = currentState.getSpeed();
+					return;
+				}
+
+				let fVal = parseFloat(speed.value);
+				if(fVal < min || fVal > max) {
+					showAlert("Speed needs to be in the range from " + min + " to " + max, true);
+					return;
+				}
+				currentState.setSpeed(fVal);
+				MusicPlayerState.setSpeed(fVal);
+				speed.blur();
+			}
+
+			function setPitch(){
+				let min = 0.25;
+				let max = 5.0;
+
+				if(pitch.value.trim() == ""){
+					pitch.value = currentState.getPitch();
+					return;
+				}
+				
+				let fVal = parseFloat(pitch.value);
+				if(fVal < min || fVal > max) {
+					showAlert("Pitch needs to be in the range from " + min + " to " + max, true);
+					return;
+				}
+				MusicPlayerState.setPitch(fVal);
+				pitch.blur();
+			}
+
+			function highlightTrackInQueue(idx){
+				let item = queueList.children[idx];
+				if(item != null){
+					$(".queue-item").removeClass("focused");
+					$(item).addClass("focused");
+				}
+			}
+
+			function scrollToTrack(){
+				if(currentTrack == null) return;
+				let item = Array.from(queueList.children)[currentState.getCurrentIndex()];
+				$("#contentCon").animate({
+					scrollTop: $(item).offset().top
+				}, 2000);
+			}
+
+			function pauseOrResumeTrack(){
+				if(currentState == null) return;
+
+				currentState.setPaused(!currentState.isPaused());
+				MusicPlayerState.setPaused(currentState.isPaused());
+
+				initPlayerState();
+			}
+
+			function looping(){
+				if(currentState == null) return;
+
+				currentState.setLooping(!currentState.isLooping());
+				MusicPlayerState.setLooping(currentState.isLooping());
+
+				initPlayerState();
+			}
+
+			function nightcore(){
+				if(currentState == null) return;
+				MusicPlayerState.enableNightcore();
+			}
+
+			function resetSettings(){
+				if(currentState == null) return;
+				MusicPlayerState.resetPlaybackSettings();
+			}
+
+			async function dumpQueue(){
+				if(queue.length == 0) return;
+				MusicPlayerState.createPlaylist();
+				showAlert("Queue dumped");
+				playlists = await MusicPlayerState.getPlaylists();
+				while(playlistList.firstChild) playlistList.removeChild(playlistList.firstChild);
+				loadPlaylistItems();
+			}
+
+			function playEndless(){
+				if(currentState == null) return;
+
+				currentState.setEndless(!currentState.isEndless());
+				MusicPlayerState.setEndless(currentState.isEndless());
+
+				initPlayerState();
+			}
+
+			function shuffleQueue(){
+				if(queue.length == 0) return;
+				MusicPlayerState.shuffleQueue();
+			}
+
+			function toggleTab(){
+				let toggle = document.getElementById("toggle-tab");
+				let title = document.getElementById("list-title");
+
+				let queueShown = (queueList.style.display == "flex");
+
+				title.innerText = (queueShown ? "Playlists" : "Queue");
+				toggle.text = (queueShown ? "Show queue" : "Show playlists");
+
+				queueList.style.display = (queueShown ? "none" : "flex");
+				playlistList.style.display = (queueShown ? "flex" : "none");
+
+				$(emptyQueueNote).toggle(!queueShown && queue.length == 0);
+			}
+
+			function stop(){
+				if(currentTrack == null) return;
+				MusicPlayerState.stopPlaying();
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Music</h1>
+				<a>Play some headbanging music</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('MUSIC')">Disable</a>
+		</div>
+		<div id="music-center">
+			<div id="music-c">
+				<div id="music-x">
+
+					<div id="music-player">
+						<div id="music-player-header">
+							<img id="music-player-image" src="data:image/png;base64,R0lGODlhFAAUAIAAAP///wAAACH5BAEAAAAALAAAAAAUABQAAAIRhI+py+0Po5y02ouz3rz7rxUAOw=="></img>
+							<div id="music-player-content">
+								<a id="music-player-title"></a>
+								<a id="music-player-author"></a>
+							</div>
+						</div>
+						<div id="music-player-body">
+							<div class="music-player-actions">
+								<img id="previous-btn" src="/img/Music/next.svg" style="transform: rotate(180deg);" onclick="jump(true)"></img>
+								<img id="next-btn" src="/img/Music/next.svg" onclick="jump(false)"></img>
+								<img id="play-btn" src="/img/Music/play.svg" onclick="pauseOrResumeTrack()"></img>
+								<img id="stop-btn" src="/img/Music/stop.svg" onclick="stop()"></img>
+							</div>
+							<div id="audio-duration-container">
+								<a id="track-position">00:00</a>
+								<a>/</a>
+								<!--<input type="range" min="0" max="100" value="0" id="audio-range">-->
+								<a id="track-duration">00:00</a>
+							</div>
+							<div class="music-player-actions">
+								<img id="looping-btn" src="/img/Music/repeat.svg" onclick="looping()"></img>
+							</div>
+						</div>
+					</div>
+
+					<div id="queue-actions">
+						<input id="track-add" placeholder="Enter tracks to queue..." onchange="addToQueue()"></input>
+						<input id="track-search" placeholder="Search track in queue..." oninput="searchQueue()"></input>
+					</div>
+
+					<div id="player-state-options">
+						<a>Player state modifications<p onclick="resetSettings()">Reset</p></a>
+						<div id="player-state-modifications">
+							<div id="volume">
+								<a>Volume:</a>
+								<input id="track-volume" maxlength=3 value="100" onchange="setVolume()"></input>
+							</div>
+							<div id="bassboost">
+								<a>Bass Boost:</a>
+								<input id="track-bassboost" maxlength=1 value="0" onchange="setBassBoost()"></input>
+							</div>
+							<div id="pitch">
+								<a>Pitch:</a>
+								<input id="track-pitch" maxlength=4 value="0" onchange="setPitch()"></input>
+							</div>
+							<div id="speed">
+								<a>Speed:</a>
+								<input id="track-speed" maxlength=4 value="0" onchange="setSpeed()"></input>
+							</div>
+							<div id="nightcore">
+								<a onclick="nightcore()">Nightcore ＼(≧▽≦)／</a>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div id="music-queue-outer">
+				<h1 id="list-title">QUEUE</h1>
+				<div id="music-queue-actions">
+					<a id="toggle-tab" onclick="toggleTab()">Show playlists</a>
+					<a id="dump-queue" onclick="dumpQueue()">Dump queue to playlist</a>
+					<a id="shuffle-queue" onclick="shuffleQueue()">Shuffle future queue</a>
+					<a id="play-endless" onclick="playEndless()">Play endless</a>
+				</div>
+				<div id="note-container"></div>
+				<div id="queue-list" style="display: flex;"></div>
+				<div id="playlist-list" style="display: none;"></div>
+			</div>
+		</div>
+	</body>
+</html>

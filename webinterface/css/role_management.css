@@ -1,0 +1,30 @@
+.role-list{
+	display: flex;
+	flex-direction: column;
+	color: #fff;
+	margin-top: 30px;
+}
+
+.role-list-head{
+	display: flex;
+	flex-direction: column;
+}
+
+.role-list-head > h1{
+	display: flex;
+	font-size: 14px;
+	color: #fff;
+	margin: 0 0 10px 0;
+}
+
+.role-list-head > a{
+	color: var(--semi-white);
+	font-size: 13px;
+	margin-bottom: 10px;
+}
+
+.role-list-head > a > code{
+	background-color: var(--semi-black);
+	padding: 2px 3px;
+	border-radius: 3px;
+}

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Graphite | Unblock Script</title>
+		<script src="./website-data/globals.js"></script>
+		<script>
+			finished(async () => {
+				await User.unblockAllScripts();
+				window.location.href = "/success?msg=Successfully unblocked all guilds";
+			}, window.location.toString());
+		</script>
+	</head>
+</html>

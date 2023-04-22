@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+		<link rel="stylesheet" href="/css/header.css">
+		<script src="/website-data/globals.js"></script>
+	</head>
+	<body>
+		<div id="navigation">
+			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+				<path fill="#1C1E21" fill-opacity="1" d="M0,288L60,261.3C120,235,240,181,360,170.7C480,160,600,192,720,213.3C840,235,960,245,1080,224C1200,203,1320,149,1380,122.7L1440,96L1440,0L1380,0C1320,0,1200,0,1080,0C960,0,840,0,720,0C600,0,480,0,360,0C240,0,120,0,60,0L0,0Z"></path>
+			</svg>
+			<div id="navigation-center">
+				<a href="/"><h1 id="graphite-title">Graphite</h1></a>
+				<a href="/faq">FAQ</a>
+				<a href="/commands">Commands</a>
+				<a href="/redirect/documentation" target="_blank" rel="noopener">Documentation</a>
+				<a href="/multiplex">Multiplex</a>
+				<a href="/redirect/patreon" target="_blank"><img id="patreon-icon" alt="Patreon" src="/img/patreon.svg" width="16" height="16"/></a>
+			</div>
+		</div>
+		<script>
+			let con = document.getElementById("navigation-center");
+
+			if(Webinterface.isLoggedIn()){
+				let wi = document.createElement("a");
+				wi.text = "Webinterface";
+				wi.href = "/webinterface";
+				wi.id = "wi";
+				con.appendChild(wi);
+
+				let logout = document.createElement("a");
+				logout.text = "Logout";
+				logout.addEventListener('click', () => Webinterface.logout());
+				logout.id = "logout";
+				con.appendChild(logout);
+			}else{
+				let login = document.createElement("a");
+				login.text = "Login";
+				login.href = "/login";
+				login.id = "login";
+				con.appendChild(login);
+			}
+		</script>
+	</body>
+</html>

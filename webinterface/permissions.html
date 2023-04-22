@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/permissions.css">
+		
+		<script>
+			var globalPermissions = [];
+			var permissionGroups = [];
+			var everyonePermissions = [];
+			var type;
+			var selectedID;
+
+			baseLoaded(async() => {
+				if(!checkGuildAdmin()) return;
+
+				permissionGroups = await Permission.getPermissionGroups();
+
+				let permissionDiv = document.getElementById("permissions");
+				let filter = document.getElementById("filter");
+				let list = document.getElementById("list");
+				let l = document.getElementById("list-outer");
+
+				for(let permissionGroup of permissionGroups){
+					let group = document.createElement("div");
+					group.classList.add("permission-group");
+					permissionDiv.appendChild(group);
+
+					if(permissionGroup.getName() != null){
+						group.id = permissionGroup.getName();
+
+						let title = document.createElement("a");
+						if(permissionGroup.getName() == "channel" || permissionGroup.getName() == "role"){
+							title.text = permissionGroup.getName() + " management";
+						}else{
+							title.text = permissionGroup.getName();
+						}
+						group.appendChild(title);
+
+						let filterButton = document.createElement("a");
+						filterButton.classList.add("filter");
+						filterButton.text = permissionGroup.getName();
+						filterButton.addEventListener('click', (e) => {
+							if($(filterButton).hasClass("selected")){
+								$(".filter").removeClass("selected");
+								$(".permission-group").show();
+								return;
+							}
+							$(".filter").removeClass("selected");
+							$(filterButton).addClass("selected");
+							let c = document.getElementById(filterButton.text);
+							$(".permission-group").hide();
+							$(c).show();
+						})
+						filter.appendChild(filterButton);
+					}
+
+					let perms = document.createElement("div");
+					group.appendChild(perms);
+
+					permissionGroup.getPermissions().forEach(permission => {
+						let item = document.createElement("div");
+						item.classList.add("permission-item");
+
+						let content = document.createElement("div");
+						item.appendChild(content);
+
+						let name = document.createElement("a");
+						name.text = permission.getPermission();
+						content.appendChild(name);
+
+						let description = document.createElement("a");
+						if(permission.getPermission().startsWith("webinterface.")){
+							let feature = permission.getPermission().split(".")[1];
+							description.text = "Grants access to " + (feature == "*" ? "all" : "the " + feature) + " tab(s)";
+						}else{
+							description.text = (permission.getPermission().endsWith(".*") ? "Grants access to all (sub-)commands" + (permissionGroup.getName() != null ? " for " + permissionGroup.getName() : "") : permission.getAvailableCommands().join(", "));
+						}
+						content.appendChild(description);
+
+                        let inp = new UICheckbox();
+						inp.onInteract(() => {
+							if(type == null) return;
+							if((type == "role" || type == "member") && selectedID == null) return;
+
+							let permGranted = inp.getCheckboxInput().checked;
+
+                            if(permGranted){
+                                globalPermissions.push(permission.getPermission());
+                            }else{
+                                removeArrayElement(globalPermissions, permission.getPermission());
+                            }
+
+							if(type == "role"){
+								Permission.setRolePermission(selectedID, permission.getPermission(), permGranted);
+							}else if(type == "everyone"){
+								Permission.setEveryonePermission(permission.getPermission(), permGranted);
+							}else if(type == "member"){
+								Permission.setMemberPermission(selectedID, permission.getPermission(), permGranted);
+							}
+
+							if(permission.getPermission() == "*"){
+								Array.from(document.getElementsByClassName("ui-checkbox"))
+									.filter(checkbox => checkbox.getAttribute("permission") != permission.getPermission())
+									.forEach(checkbox => {
+										if(inp.getCheckboxInput().checked){
+											checkbox.parentElement.setAttribute("disabled", true);
+											checkbox.checked = true;
+											return;
+										}
+
+										let permission = checkbox.getAttribute("permission");
+
+										if(globalPermissions.includes(permission.split(".")[0] + ".*")){
+											if(checkbox.getAttribute("permission") == permission.split(".")[0] + ".*"){
+												checkbox.parentElement.removeAttribute("disabled");
+											}
+											return;
+										}
+										
+										checkbox.parentElement.removeAttribute("disabled");
+										checkbox.checked = globalPermissions.includes(permission);
+									});
+								return;
+							}
+
+							if(permission.getPermission().endsWith(".*")){
+								Array.from(document.getElementsByClassName("ui-checkbox"))
+									.forEach(checkbox => {
+										if(inp.getCheckboxInput().checked){
+											checkbox.parentElement.setAttribute("disabled", true);
+											checkbox.checked = true;
+										}
+
+										let permission = checkbox.getAttribute("permission");
+
+										if(globalPermissions.includes(permission.split(".")[0] + ".*")){
+											if(checkbox.getAttribute("permission") == permission.split(".")[0] + ".*"){
+												checkbox.parentElement.removeAttribute("disabled");
+											}
+											return;
+										}
+
+										checkbox.parentElement.removeAttribute("disabled");
+										checkbox.checked = globalPermissions.includes(permission);
+									});
+								return;
+							}
+						});
+                        inp.setAttribute("permission", permission.getPermission());
+                        inp.switch.setAttribute("disabled", true);
+						item.appendChild(inp.build());
+
+						perms.appendChild(item);
+					});
+				}
+						
+				let note = new UINote("Information", "Be careful when granting permissions to @everyone")
+					.setStyle("margin-bottom: 10px;")
+					.build();
+
+				var initCheckboxes = (permission) => {
+					if(!globalPermissions.includes(permission.getPermission())) {
+						globalPermissions.push(permission.getPermission());
+					}
+
+					if(permission.getPermission() == "*") {
+						Array.from(document.getElementsByClassName("ui-checkbox"))
+							.filter(checkbox => checkbox.getAttribute("permission") != permission.getPermission())
+							.forEach(checkbox => {
+								checkbox.parentElement.setAttribute("disabled", true);
+								checkbox.checked = true;
+							});
+					}
+
+					if(permission.getPermission() != "*" && permission.getPermission().endsWith(".*")){
+						let group = document.getElementById(permission.getPermission().split(".")[0]);
+						for(let checkbox of group.getElementsByClassName("ui-checkbox")){
+							if(checkbox.getAttribute("permission").endsWith(".*")) continue;
+							checkbox.parentElement.setAttribute("disabled", true);
+							checkbox.checked = true;
+						}
+					}
+
+					let checkbox = Array.from(document.getElementsByClassName("ui-checkbox")).find(checkbox => checkbox.getAttribute("permission") == permission.getPermission());
+					checkbox.checked = true;
+				}
+
+				roles.forEach(role => {
+					let a = document.createElement("a");
+					a.classList.add("sidebar-item");
+					a.text = (role.isPublicRole() ? role.getName() : "@" + role.getName());
+					a.style.color = getHexColor(role.getColorRaw());
+					a.addEventListener('click', async() => {
+						type = (role.isPublicRole() ? "everyone" : "role");
+						selectedID = role.getID();
+
+						$(".sidebar-item").removeClass("selected");
+						$(a).addClass("selected");
+
+						if(role.isPublicRole()){
+							if(Array.from(l.children).includes(note)) return;
+							l.insertBefore(note, l.firstChild);
+						}else{
+							if(Array.from(l.children).includes(note)) l.removeChild(note);
+						}
+
+						for(let checkbox of document.getElementsByClassName("ui-checkbox")){
+							checkbox.checked = false;
+							checkbox.parentElement.removeAttribute("disabled");
+						}
+
+						if(role.isPublicRole()){
+							globalPermissions = await Permission.getEveryonePermissions();
+						}else{
+							globalPermissions = await Permission.getRolePermissions(role.getID());
+						}
+						globalPermissions.forEach(permission => initCheckboxes(permission));
+					})
+					list.appendChild(a);
+				});
+
+				members.forEach(member => {
+					let a = document.createElement("a");
+					a.classList.add("sidebar-item");
+					a.text = member.getName();
+					a.addEventListener('click', async () => {
+						type = "member";
+						selectedID = member.getID();
+
+						$(".sidebar-item").removeClass("selected");
+						$(a).addClass("selected");
+						
+						if(Array.from(l.children).includes(note)) l.removeChild(note);
+
+						for(let checkbox of document.getElementsByClassName("ui-checkbox")){
+							checkbox.checked = false;
+							checkbox.parentElement.removeAttribute("disabled");
+						}
+
+						globalPermissions = await Permission.getMemberPermissions(member.getID());
+						globalPermissions.forEach(permission => initCheckboxes(permission));
+					})
+					list.appendChild(a);
+
+					let discriminator = document.createElement("a");
+					discriminator.innerText = "#" + member.getDiscriminator();
+					a.appendChild(discriminator);
+				});
+
+				let s = document.getElementById("search-input");
+				s.addEventListener('input', () => search(s, list));
+
+				if(!isAboveUserRoles){
+					let note = new UINote("Spooooky", "I can't interact with some roles. To work well, my role needs to be above all user roles.")
+						.red()
+						.setStyle("margin-bottom: 10px;")
+						.build();
+					l.insertBefore(note, l.firstChild);
+				}
+			});
+		</script>
+	</head>
+	<body>
+		<div id="permission-filter">
+			<a>Filter</a>
+			<div id="filter"></div>
+		</div>
+		<div id="permission-container">
+			<div id="list-outer">
+				<input placeholder="Search..." id="search-input"></input>
+				<div id="list"></div>
+			</div>
+			<div id="permissions"></div>
+		</div>
+	</body>
+</html>

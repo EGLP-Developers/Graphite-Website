@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Graphite | Logging in...</title>
+		
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+		<script src="./website-data/jquery-3.6.0.min.js"></script>
+		<script src="./website-data/globals.js"></script>
+		<link rel="stylesheet" href="css/defaults.css">
+		<link rel="stylesheet" href="css/login.css">
+
+		<script>
+			let params = new URLSearchParams(window.location.search);
+			let code = params.get("code");
+			let redirect = params.get("redirect");
+			if(code == null) {
+				let url = graphiteURL + "/redirect/discordlogin";
+				if(redirect != null) url += "?state=" + encodeURIComponent(redirect);
+				window.location.href = url;
+			}else {
+				finished0(false, code, () => {
+					console.log("Login done!");
+				}, params.get("state"));
+			}
+		</script>
+	</head>
+</html>

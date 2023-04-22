@@ -1,0 +1,111 @@
+[NEED TO BE CHECKED]
+
+The bot has a variety of features in a variety of categories which can be enabled/disabled by our Module system:
+
+Moderation:
+- Reports: Allows members to report other members with a reason. Admins can look at the reports and act accordingly
+- Chat reports: Users can create a chat report which will include the last 100 messages which admins of the server can look at to determine what to do
+- Tempmute: Mutes a member in a voice channel temporarily
+- Clear: Clears a given amount of messages from a text channel (up to a limit of 100 messages)
+- Clearall: Clears all messages in a text channel (up to a limit of 1000 messages)
+- Jail: "Jails" a member in the voice channel they're currently in and prevents them from switching channels (by moving them back)
+- Tempjail: "Jails" a member in a voice channel temporarily
+- Tempban: Bans a member and unbans them again after the given time
+- Support: Allows the admins of the server to set a "Support" voice channel and "Supporter" roles which will get notified if a user joins the "Support" channel
+- Categorycopy: Copies the settings of one category to another one
+- Autochannels: Allows admins to set voice channels to be "Autochannels", which will automatically duplicate themselves when someone joins (e.g. "Talk" will become "Talk #1" then "Talk #2" etc.)
+
+Music:
+- General music features (play, pause, ...) which will play music from YouTube, SoundCloud, ... using LavaPlayer
+- Playlists: Allows users to save the current music queue to a playlist which they can later play again
+
+Backups:
+- Allows admins to create backups of their guild (including chat messages, icon, guild name, ...)
+- Interval backups: Allows admins to set an interval to make Graphite create backups periodically
+- Template backups: Lets admins share the backup of their guild (excluding chat messages, server bans and bot settings), which other users can search for and copy to their own guilds
+- Backup cloning: Lets admins clone a backup to another guild they have permission on (excluding chat messages, server bans and bot settings)
+
+Info:
+- Botinfo: Provides general info about the bot (Developers, Library, Bot id and name, ...)
+- Eastereggs: Lets users see what easter eggs they've found. A few of them are hidden throughout the bot
+- Invite: Shows an invite link for the bot
+- Upvote: Shows upvote links for the bot
+- Whatareyoudoing: Provides some more "advanced" information about what the bot is doing
+- Voice- & Textchannel/Categoryinfo: Shows information about a channel/category (name, id, type, parent, user limit, ...)
+- Userinfo: Shows information about a user (name, id, nichname, self muted, self deafened, ...)
+- Emoteinfo: Shows information about an emoji/general character sequence (Escaped Java + escaped HTML)
+
+Miscellaneous:
+- Money: Shows the user how much money they have (can be earned through voting or playing minigames)
+- Userchannels: Allows normal members to create "user channels" which will be created in a separate category, the creator will be given all permissions in the channel and be moved to it. After they leave, the channel gets deleted
+- Recordings: Allows members (with permission) to create recordings of a voice channel. The bot will indicate that it's recording by renaming itself. Records can be played back on the webinterface and downloaded as well.
+- Scripts: Allows users to add features to the bot themselves via a JavaScript API (with some very limited functionality: message (rate-)limits, limited access to the Discord API...)
+
+Fun:
+- Fun commands, such as "belikebill", "8ball", "chucknorris" and "memes"
+- Minigames: TicTacToe, Battleships, Connect Four, RPG, Minesweeper, Poker, which can be played in chat (against other members)
+
+Admin:
+- Customlocale/Locale: Allows admins to download the default locale, customize it and use it on their guild
+- Permission: General permission system to manage what members can and can't do (including .* permissions to grant all sub permissions)
+- Prefix: Allows admins to change the bot's prefix on the guild
+- Modules: Allows admins to enable/disable specific parts/categories of the bot's features
+
+Premium:
+Graphite has two levels of "premium": Graphite Carbon and Graphite Diamond (see https://www.patreon.com/graphite_official). Premium is optional and you won't get "feature-locked" if you don't buy it
+
+Twitch:
+- Lets admins set a notification message for when a configured streamer goes live on Twitch
+
+Role:
+- Accessrole: Allows admins to set "accessible" roles which users can get via the getrole command
+- Autorole: Allows admins to set "autoroles" that will automatically be added to new users
+- Botrole: Allows admins to set "botroles" that will automatically be added to new bots
+
+Automod [UNCHECKED TEXT]:
+- Blocks bad word usage
+- Blocks repeated text (Min text length & max repeats can be changed)
+- Blocks server invites (Passed invites can be added)
+- Blocks links (Passed links can be added)
+- Blocks excessive caps (Min text length & max caps percent can be changed)
+- Blocks excessive emojis (Max emojis can be changed)
+- Blocks excessive spoilers (Max spoilers can be changed)
+- Blocks excessive mentions (Max mentions can be changed)
+- Blocks zalgo text
+
+Features Twitter text:
+[ENTER TEXT]
+
+Other links for more information [HTML]:
+<a href="https://graphite-official.com/faq.php">FAQ</a>, 
+<a href="https://twitter.com/GraphiteSupport">Twitter</a>, 
+<a href="https://graphite-official.com/commands.php">Commands</a>, 
+<a href="https://docs.graphite-official.com/">Documentation</a>, 
+<a href="https://www.patreon.com/graphite_official">Premium</a>, 
+<a href="https://graphite-official.com/discord">Discord</a>, 
+<a href="https://discord.com/oauth2/authorize?client_id=355050503459045378&scope=bot&permissions=8">Invite</a>, 
+<a href="https://graphite-official.com/webinterface.php">Webinterface</a>
+
+Other links for more information [MARKDOWN]:
+[FAQ](https://graphite-official.com/faq), 
+[Twitter](https://twitter.com/GraphiteSupport), 
+[Commands](https://graphite-official.com/commands), 
+[Documentation](https://docs.graphite-official.com/), 
+[Premium](https://www.patreon.com/graphite_official), 
+[Our Discord](https://graphite-official.com/discord), 
+[Invite](https://discord.com/oauth2/authorize?client_id=355050503459045378&scope=bot&permissions=8), 
+[Webinterface](https://graphite-official.com/webinterface)
+
+Short description for Twitch and so on:
+
+Graphite is a highly customizable Discord bot for:
+- Twitch (Live notifications)
+- Moderation (Automod)
+- Music (Support for ...)
+- Fun (Minigames, Among Us integration, ...)
+- Role Management (Autoroles, Accessroles, Botroles)
+- Channel Management (Autochannels)
+- Recording
+- CustomCommands
+- Scripting
+- Information (Channel/User/Category info)

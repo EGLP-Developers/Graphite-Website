@@ -1,0 +1,93 @@
+*{
+  font-family: 'Open Sans',sans-serif;
+  scrollbar-width: normal;
+  scroll-behavior: smooth;
+}
+
+html, body{
+  display: flex;
+  flex-direction: row;
+  cursor: default;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  background-color: var(--secondary-color);
+}
+
+:root{
+  --primary-color: #1C1E21;
+  --secondary-color: #282B2F;
+
+  --red: #bf3838;
+  --blue: #3861b4;
+  --green: #38bf77;
+  --white: #FFF;
+  --purple: #7289da;
+  --black: rgb(0, 0, 0);
+  
+  --semi-white: rgba(255, 255, 255, .7);
+  --ghost-white: rgba(255, 255, 255, .1);
+
+  --semi-black: rgba(0, 0, 0, .3);
+  --ghost-black: rgba(0, 0, 0, .1);
+
+  --semi-red: rgba(191, 56, 56, .7);
+  --ghost-red: rgba(191, 56, 56, .1);
+
+  --semi-blue: rgba(56, 123, 191, .7);
+  --ghost-blue: rgba(56, 123, 191, .1);
+
+  --button-padding: 8px 15px;
+}
+
+input[disabled="true"],
+input:disabled{
+  cursor: not-allowed;
+}
+
+button[disabled="true"],
+button:disabled{
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.module-header{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.disable-module{
+  content: url("/img/locked.svg");
+  width: 18px;
+  height: 18px;
+  background-color: var(--red);
+  border-radius: 100%;
+  padding: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.disable-module:hover{
+  background-color: var(--red);
+  transition: all .3s ease-in-out;
+}
+
+.module-text{
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+}
+
+.module-text > h1{
+  font-size: 18px;
+}
+
+.module-text > a{
+  color: #D3D3D3;
+  font-size: 13px;
+}

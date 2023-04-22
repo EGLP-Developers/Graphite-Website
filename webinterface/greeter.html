@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/greeter.css">
+		
+		<script>
+			var info;
+	
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('GREETER')) return;
+				if(!checkModuleEnabled('GREETER')) return;
+
+				info = await Greeter.getGreeterInfo();
+
+                //Greeting > Join message
+                let greetingContent = document.getElementById("greeting-content");
+				let greetingCtnHead = document.getElementById("greeting-head");
+
+				let enableGreeting = new UICheckbox().onInteract(() => {
+					greetingContent.classList.toggle("visible");
+					info.greetingEnabled = enableGreeting.firstChild.checked;
+					Greeter.setGreeterInfo(info);
+				}).build();
+				enableGreeting.firstChild.checked = info.isGreetingEnabled();
+				if(info.isGreetingEnabled()) greetingContent.classList.add("visible");
+				greetingCtnHead.appendChild(enableGreeting);
+
+				let greetingSettings = document.createElement("div");
+				greetingSettings.classList.add("greeter-settings");
+				greetingContent.appendChild(greetingSettings);
+
+				let greetingMessage = new UITextInput()
+					.setValue(info.getGreetingMessage())
+					.onInteract((val) => {
+						info.greetingMessage = val;
+						Greeter.setGreeterInfo(info);
+					});
+
+				greetingSettings.appendChild(greetingMessage.build());
+
+				let greetingChannel = new UIDropdown();
+
+				greetingChannel.addUIElement(new UIDropdownElement()
+					.addText("Send to user")
+					.setAttribute("value", "sent-to-user")
+					.onInteract(() => {
+						info.greetingChannel = null;
+						Greeter.setGreeterInfo(info);
+					}));
+
+				greetingChannel.addTextChannels((e) => {
+					info.greetingChannel = e.getID();
+					Greeter.setGreeterInfo(info);
+				});
+
+				greetingChannel.findElementByAttribute("value", info.getGreetingChannel() == null ? "sent-to-user" : info.getGreetingChannel());
+
+				greetingSettings.appendChild(greetingChannel.build());
+
+                //Farewell > Leave message
+                let farewellContent = document.getElementById("farewell-content");
+                let farewellCtnHead = document.getElementById("farewell-head");
+
+				let enableFarewell = new UICheckbox().onInteract(() => {
+					farewellContent.classList.toggle("visible");
+					info.farewellEnabled = enableFarewell.firstChild.checked;
+					Greeter.setGreeterInfo(info);
+				}).build();
+				enableFarewell.firstChild.checked = info.isFarewellEnabled();
+				if(info.isFarewellEnabled()) farewellContent.classList.add("visible");
+				farewellCtnHead.appendChild(enableFarewell);
+
+				let farewellSettings = document.createElement("div");
+				farewellSettings.classList.add("greeter-settings");
+				farewellContent.appendChild(farewellSettings);
+
+				let farewellMessage = new UITextInput()
+					.setValue(info.getFarewellMessage())
+					.onInteract((val) => {
+						info.farewellMessage = val;
+						Greeter.setGreeterInfo(info);
+					});
+
+				farewellSettings.appendChild(farewellMessage.build());
+
+				let farewellChannel = new UIDropdown();
+				farewellChannel.setPlaceholder("Please select a channel...");
+				farewellChannel.x(() => {
+					Greeter.unsetFarewellChannelJS();
+					farewellChannel.setPlaceholder("Please select a channel...");
+				});
+
+				farewellChannel.addTextChannels((e) => {
+					info.farewellChannel = e.getID();
+					Greeter.setGreeterInfo(info);
+				});
+
+				if(info.getFarewellChannel() != null) farewellChannel.findElementByAttribute("value", info.getFarewellChannel());
+
+				farewellSettings.appendChild(farewellChannel.build());
+			});
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Greeter</h1>
+				<a>Say hello to new members</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('GREETER')">Disable</a>
+		</div>
+		<div class="greeter-container">
+			<div id="greeting-head">
+				<a>Send a message when a user joins the server</a>
+			</div>
+			<div id="greeting-content">
+				<a>Available greeting modifiers: {user}, {mention} and {server}</a>
+			</div>
+		</div>
+		<div class="greeter-container">
+			<div id="farewell-head">
+				<a>Send a message when a user leaves a server</a>
+			</div>
+			<div id="farewell-content">
+				<a>Available farewell modifiers: {user} and {server}</a>
+			</div>
+		</div>
+	</body>
+</html>

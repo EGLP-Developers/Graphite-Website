@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Graphite | Home</title>
+
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+		<meta name="keywords" content="graphite,bot,discord,discordbot,rpg,minigames,moderation,fun,automoderation,discord bot,discord music bot,music bot,multipurpose bot,discord bot command">
+		<meta name="description" content="Set up Twitch, moderation, fun, role-management and music features.">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+		<link rel="icon" href="/img/graphite-raw.svg">
+		<link rel="stylesheet" href="css/defaults.css">
+		<link rel="stylesheet" href="css/home.css">
+		
+		<script src="./website-data/jquery-3.6.0.min.js"></script>
+
+		<script>
+			$(() => {
+				fetch('/api/status')
+					.then(response => response.json())
+					.then(json => {
+						let status = document.getElementById("status");
+						let statusImage = document.getElementById("status-image");
+
+						let isOnline = json["online"];
+						let bots = json["bots"];
+
+						if(isOnline){
+							statusImage.src = "img/check.svg";
+							status.text = "Graphite works as expected.";
+							status.style.color = "var(--green)";
+						}else{
+							statusImage.src = "img/error.svg";
+							status.text = "Graphite doesn't work as expected.";
+							status.style.color = "var(--red)";
+						}
+					});
+			});
+		</script>
+	</head>
+	<body>
+		<header id="header">
+			<!--#include virtual="/header.html" -->
+		</header>
+		<main id="home">
+			<div id="home-center">
+				<div id="title">
+					<a>Graphite</a>
+					<a>Multiplex</a>
+					<a>&nbsp;+&nbsp;Webinterface</a>
+				</div>
+				<div id="description">
+					is the first bot system where you can pick between the global <strong>Graphite</strong> <br>bot including all features or a <strong>Multiplex Bot</strong> with separated features from the global bot.
+				</div>
+				<div id="actions">
+					<a href="/redirect/invite" target="_blank" rel="noopener"><img alt="Discord" src="/img/discord.svg"/>Add to Discord</a>
+					<a href="/redirect/discord" target="_blank" rel="noopener">Our Discord server</a>
+				</div>
+			</div>
+			<div id="home-status">
+				<img id="status-image" src="img/error.svg" alt=""/>
+				<a id="status" style="color: var(--red);">Graphite doesn't work as expected.</a>
+			</div>
+		</main>
+		<footer id="footer">
+			<!--#include virtual="/footer.html" -->
+		</footer>
+	</body>
+</html>

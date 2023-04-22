@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 124 124" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g id="Twitch">
+        <rect x="14" y="85" width="77.33" height="8" style="fill:white;"/>
+        <rect x="14" y="32.749" width="9" height="52.251" style="fill:white;"/>
+        <rect x="32.749" y="14" width="77.251" height="9" style="fill:white;"/>
+        <rect x="101" y="23" width="9" height="47.639" style="fill:white;"/>
+        <path d="M32.749,14L14,32.749L20.364,39.113L39.113,20.364L32.749,14Z" style="fill:white;"/>
+        <path d="M103.091,64.871L84.422,87.232L91.33,93L110,70.639L103.091,64.871Z" style="fill:white;"/>
+        <path d="M71.544,91.47L54.221,108.256L54.035,91.666L71.544,91.47Z" style="fill:white;"/>
+        <path d="M63.868,41.536C63.868,39.119 61.905,37.155 59.487,37.155C57.069,37.155 55.106,39.119 55.106,41.536L55.106,60.49C55.106,62.908 57.069,64.871 59.487,64.871C61.905,64.871 63.868,62.908 63.868,60.49L63.868,41.536Z" style="fill:white;"/>
+        <path d="M88.115,41.536C88.115,39.119 86.152,37.155 83.734,37.155C81.316,37.155 79.353,39.119 79.353,41.536L79.353,60.49C79.353,62.908 81.316,64.871 83.734,64.871C86.152,64.871 88.115,62.908 88.115,60.49L88.115,41.536Z" style="fill:white;"/>
+    </g>
+</svg>

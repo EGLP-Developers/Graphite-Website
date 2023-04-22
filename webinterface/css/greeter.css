@@ -1,0 +1,47 @@
+.greeter-container{
+    display: flex;
+    flex-direction: column;
+    color: #fff;
+    margin-top: 30px;
+    background-color: rgba(19, 20, 21, .2);
+    padding: 15px;
+    border-radius: 3px;
+}
+
+#greeting-head, 
+#farewell-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#greeting-head > a,
+#farewell-head > a{
+    font-size: 14px;
+    color: #fff;
+    font-weight: bold;
+}
+
+#greeting-content,
+#farewell-content{
+    display: none;
+    flex-direction: column;
+}
+
+#greeting-content a,
+#farewell-content a{
+    font-size: 13px;
+    color: lightgray;
+}
+
+.greeter-settings{
+    display: grid;
+    grid-template-columns: calc(80% - 30px) 20%;
+    gap: 30px;
+	margin-top: 30px;
+}
+
+#greeting-content.visible, 
+#farewell-content.visible{
+    display: flex;
+}

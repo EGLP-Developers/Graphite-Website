@@ -1,0 +1,199 @@
+#customcommand-center{
+	display: flex;
+	flex-direction: column;
+}
+
+#customcommand-center > h1{
+	margin: 0;
+	color: white;
+	font-size: 18px;
+	margin-bottom: 10px;
+}
+
+.customcommand-actions{
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+#delete-all-commands,
+#create-command{
+	display: flex;
+	align-self: flex-start;
+	background-color: var(--red);
+	padding: 7px 15px;
+	border-radius: 3px;
+	font-size: 13px;
+	color: white;
+	cursor: pointer;
+	margin-bottom: 30px;
+}
+
+#create-command{
+	background-color: var(--green);
+}
+
+#customcommands{
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.cc-item{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px;
+	border-radius: 3px;
+	color: #fff;
+	position: relative;
+	cursor: pointer;
+}
+
+.cc-item:hover{
+	background-color: var(--primary-color);
+	transition: all .3s ease-in-out;
+}
+
+.cc-text{
+	display: flex;
+	flex-direction: column;
+}
+
+.cc-actions{
+	display: flex;
+}
+
+.cc-name{
+	font-size: 14px;
+	color: #fff;
+}
+
+.cc-permission{
+	font-size: 12px;
+	color: #fff;
+	opacity: .7;
+	margin-top: 5px;
+}
+
+.cc-actions{
+	display: none;
+	position: absolute;
+	top: -13px;
+	right: -13px;
+}
+
+.cc-item:hover .cc-actions{
+	display: flex;
+}
+
+.cc-actions > img{
+	width: 14px;
+	backface-visibility: hidden;
+	margin-left: 10px;
+	cursor: pointer;
+	padding: 6px;
+	background-color: var(--red);
+	border-radius: 100%;
+}
+
+#actions{
+	margin-top: 10px;
+}
+
+.action-item{
+	display: flex;
+	flex-direction: column;
+	padding: 10px;
+	border-radius: 3px;
+	background-color: var(--primary-color);
+	color: #fff;
+	overflow: hidden;
+	font-size: 14px;
+	margin-bottom: 10px;
+}
+
+.action-item-header{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	margin-bottom: 5px;
+}
+
+.action-item-header > a{
+	font-weight: bold;
+	width: calc(100% - 88px);
+}
+
+.action-item-header > div{
+	display: flex;
+	align-items: center;
+	width: 88px;
+	overflow: hidden;
+}
+
+.action-item-header > div > img{
+	width: 16px;
+	backface-visibility: hidden;
+	margin: 0 3px;
+	cursor: pointer;
+}
+
+/*NEW*/
+/*#cc-create{
+	display: flex;
+	flex-direction: column;
+	align-self: flex-start;
+	position: sticky;
+	top: 0px;
+	border-radius: 3px;
+	background-color: var(--primary-color);
+	padding: 10px;
+}
+
+#cc-create > .cc-create-title{
+	color: #fff;
+	font-size: 13px;
+	margin-bottom: 5px;
+}
+
+#cc-create > input{
+	background-color: var(--primary-color);
+	border: none;
+	border-radius: 3px;
+	padding: 7px 15px;
+	min-height: 30px;
+	color: #fff;
+	outline: none;
+}
+
+#cc-create > #cc-create-actions, 
+#cc-create > #cc-create-quick{
+	display: flex;
+	margin-bottom: 15px;
+}
+
+#cc-create > #cc-create-actions > a, 
+#cc-create > #cc-create-quick > a{
+	align-self: flex-start;
+	border-radius: 3px;
+	background-color: var(--blue);
+	padding: 7px 15px;
+	color: white;
+	font-size: 13px;
+	text-align: center;
+	cursor: pointer;
+}
+
+#cc-create > #cc-create-add-action{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: white;
+	border-radius: 3px;
+	background-color: rgba(19, 20, 21, .7);
+	width: 32px;
+	height: 32px;
+	cursor: pointer;
+	font-weight: bold;
+}*/

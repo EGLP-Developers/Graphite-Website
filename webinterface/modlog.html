@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/modlog.css">
+		
+		<script>
+			var list = document.getElementById("modlog-list");;
+			var modlogUsers = {};
+
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('MODERATION')) return;
+				if(!checkModuleEnabled('MODERATION')) return;
+
+				modlogEntries = await ModLog.getModLogEntries();
+				for(let entry of modlogEntries) getModlogItem(entry).then(i => list.appendChild(i));
+
+				Webinterface.registerCustomHandler("updateModLogEntries", packet => {
+					getModlogItem(packet.data.modlogEntry).then(i => list.insertBefore(i, list.firstChild));
+				});
+			});
+
+			async function getModlogItem(entry){
+				let item = document.createElement("div");
+				item.classList.add("modlog-item");
+
+				if(modlogUsers[entry.getModeratorID()] == null){
+					moderator = await User.getUserByID(entry.getModeratorID());
+					modlogUsers[entry.getModeratorID()] = moderator;
+				}else{
+					moderator = modlogUsers[entry.getModeratorID()];
+				}
+
+				if(modlogUsers[entry.getMemberID()] == null){
+					member = await User.getUserByID(entry.getMemberID());
+					modlogUsers[entry.getMemberID()] = member;
+				}else{
+					member = modlogUsers[entry.getMemberID()];
+				}
+
+				let images = document.createElement("div");
+				images.classList.add("modlog-item-images");
+
+				let img = document.createElement("img");
+				img.src = imageFromType(entry.getType().name());
+				images.appendChild(img);
+
+				let avatar = document.createElement("img");
+				avatar.classList.add("modlog-avatar");
+				avatar.src = moderator.getAvatarURL();
+				images.appendChild(avatar);
+
+				item.appendChild(images);
+
+				let text = document.createElement("div");
+				text.classList.add("modlog-item-text");
+
+				let txt1 = document.createElement("div");
+				txt1.classList.add("modlog-item-first-text");
+
+				let mod = document.createElement("a");
+				mod.text = (moderator == null ? entry.getModeratorID() : moderator.getFullName());
+				txt1.appendChild(mod);
+
+				let action = document.createElement("a");
+				action.text = entry.getType().getFriendlyAction().toLowerCase();
+				txt1.appendChild(action);
+
+				let mem = document.createElement("a");
+				mem.text = (member == null ? entry.getMemberID() : member.getFullName());
+				txt1.appendChild(mem);
+
+				if(entry.getActionDuration() != -1){
+					let duration = document.createElement("a");
+					duration.text = "for " + getFriendlyDuration(entry.getActionDuration());
+					txt1.appendChild(duration);
+				}
+
+				if(entry.getReason() != null && entry.getReason().trim().length != 0){
+					let reasonPreText = document.createElement("a");
+					reasonPreText.text = "with reason"
+					txt1.appendChild(reasonPreText);
+
+					let reason = document.createElement("code");
+					reason.innerText = entry.getReason();
+					txt1.appendChild(reason);
+				}
+
+				text.appendChild(txt1);
+
+				let txt2 = document.createElement("div");
+				txt2.classList.add("modlog-item-last-text");
+				let date = new Date(entry.getTimestamp()).toString();
+				txt2.textContent = date;
+				text.appendChild(txt2);
+
+				item.appendChild(text);
+
+				return item;
+			}
+
+			function imageFromType(type){
+				let img;
+
+				if(type == "WARNING"){
+					img = "/img/Modlog/warn.svg";
+				}else if(type == "CHATMUTE"){
+					img = "/img/Modlog/mute.svg";
+				}else if(type == "TEMP_CHATMUTE"){
+					img = "/img/Modlog/temp_mute.svg";
+				}else if(type == "BAN"){
+					img = "/img/Modlog/ban.svg";
+				}else if(type == "TEMP_BAN"){
+					img = "/img/Modlog/temp_ban.svg";
+				}else{
+					img = "/img/Modlog/warn.svg";
+				}
+
+				return img;
+			}
+
+			function searchModlogEntry(input){
+				for(let child of list.children){
+					let txt = child.getElementsByClassName("modlog-item-first-text")[0];
+					child.style.display = (txt.innerText.toLowerCase().includes(input.value.toLowerCase()) ? "flex" : "none");
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Modlog</h1>
+				<a>The modlog is similar to the Discord audit log. You can't remove items from the log but modlog entries that are older than 1 month will be deleted automatically</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('MODERATION')">Disable</a>
+		</div>
+		<div id="modlog-note"></div>
+		<div id="modlog-actions">
+			<input placeholder="Search..." oninput="searchModlogEntry(this)"/>
+		</div>
+		<div id="modlog-list"></div>
+	</body>
+</html>

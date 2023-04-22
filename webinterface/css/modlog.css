@@ -1,0 +1,85 @@
+#modlog-note{
+	margin-top: 30px;
+}
+
+#modlog-actions{
+	display: flex;
+}
+
+#modlog-actions input{
+	display: flex;
+	font-size: 14px;
+	color: #fff;
+	background-color: var(--primary-color);
+	border-radius: 3px;
+	height: 18px;
+	padding: 13px;
+	outline: none;
+	border: none;
+	width: 15%;
+}
+
+#modlog-list{
+	display: flex;
+	flex-direction: column;
+	margin-top: 30px;
+}
+
+.modlog-item{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	padding: 10px;
+	color: #fff;
+	font-size: 14px;
+	border-radius: 3px;
+	background-color: var(--primary-color);
+	margin-bottom: 5px;
+}
+
+.modlog-item-images{
+	display: flex;
+	align-items: center;
+}
+
+.modlog-item-images > img:first-of-type{
+	border-radius: unset;
+	height: 28px;
+}
+
+.modlog-item-images > img{
+	backface-visibility: hidden;
+	height: 32px;
+	border-radius: 100%;
+	margin-right: 10px;
+}
+
+.modlog-item-text{
+	display: flex;
+	flex-direction: column;
+	color: #fff;
+	font-size: 14px;
+	margin-left: 10px;
+}
+
+.modlog-item-first-text > a:nth-of-type(1),
+.modlog-item-first-text > a:nth-of-type(3){
+	color: var(--semi-white);
+	font-weight: bold;
+}
+
+.modlog-item-first-text > a{
+	margin-right: 5px;
+}
+
+.modlog-item-last-text{
+	font-size: 12px;
+	color: rgba(255, 255, 255, .3);
+	margin-top: 5px;
+}
+
+code{
+	padding: 3px 10px;
+	border-radius: 3px;
+	background-color: #1a1a1a;
+}

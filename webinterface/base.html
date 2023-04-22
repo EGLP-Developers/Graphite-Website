@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Graphite | Webinterface</title>
+		
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="theme-color" content="white">
+		<meta charset='utf-8'>
+
+		<link rel="icon" href="..//img/graphite-raw.svg">
+		
+		<link rel="stylesheet" href="css/base.css">
+		<link rel="stylesheet" href="css/defaults.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+		<link id="scrollbars" rel="stylesheet" href="css/disable-scrollbars.css">
+		
+		<script src="../website-data/jquery-3.6.0.min.js"></script>
+		<script src="../website-data/globals.js"></script>
+
+		<script src="js/utils.js"></script>
+		<script src="js/UIElement.js"></script>
+		<script src="js/alerts.js"></script>
+		<script src="js/dialog.js"></script>
+		<script src="js/embed.js"></script>
+		<script src="js/dynamic_site.js"></script>
+
+		<script>
+			var user = null;
+			var selectedGuild = null;
+			var isGuildAdmin = false;
+			var isGuildOwner = false;
+			var permittedGuilds = [];
+			var modules = [];
+			var voicechannels = [];
+			var roles = [];
+			var textchannels = [];
+			var stagechannels = [];
+			var newschannels = [];
+			var members = [];
+			var categories = [];
+			var isAboveUserRoles = false;
+			var availableBots;
+			var botIdentifier;
+			var modlogEntries = [];
+			var mLE;
+			var enabledFeatures = [];
+			var permittedFeatures = [];
+			var baseLoadDone = false;
+			var baseLoadCallback;
+			var loggedIn = [];
+			var scrollbarsEnabled = false;
+			var settings;
+
+			let contentContainer = "#content-container";
+			
+			async function disableModule(mod){
+				await Module.disableModule(mod);
+
+				let module = modules.find(m => m.getID() == mod);
+				if(module != null) module.enabled = false;
+
+				let navigationItems = document.getElementsByClassName("navigation-item");
+				let items = Array.from(navigationItems).filter(i => i.getAttribute("module") != null && i.getAttribute("module").toUpperCase() == mod);
+				items.forEach(i => {
+					i.classList.remove("focused");
+					i.setAttribute("disabled", true)
+				});
+
+				redirectToDashboard();
+			}
+
+			function baseLoaded(callback){
+				if(baseLoadDone) {
+					callback();
+					return;
+				}
+
+				baseLoadCallback = callback;
+			}
+
+			finished(async() => {
+				user = await User.getSelfUser();
+				selectedGuild = await Guild.getSelectedGuild();
+				isGuildAdmin = await User.isGuildAdmin();
+				isGuildOwner = await User.isGuildOwner();
+				modules = await Module.getModules();
+				voicechannels = await VoiceChannel.getVoiceChannels();
+				roles = await Role.getRoles();
+				textchannels = await TextChannel.getTextChannels();
+				members = await Member.getMembers();
+				categories = await Category.getCategories();
+				stagechannels = await StageChannel.getStageChannels();
+				newschannels = await NewsChannel.getNewsChannels();
+				permittedGuilds = await WebinterfaceGuild.getPermittedGuilds();
+				isAboveUserRoles = await Bot.isAboveUserRoles();
+				if(isGuildAdmin) loggedIn = await Bot.getLoggedInUsers();
+
+				availableBots = await Bot.getAvailableBots();
+				botIdentifier = availableBots[0].getIdentifier();
+				Webinterface.setDefaultBot(botIdentifier);
+				if(isGuildAdmin) settings = await Settings.getSettings(botIdentifier);
+
+				await loadNavigation();
+
+				let selGuild = document.getElementById("selected-server");
+				selGuild.text = selectedGuild.getName();
+
+				reloadTab();
+
+				baseLoadDone = true;
+				if(baseLoadCallback != null) baseLoadCallback();
+				$(".loader").fadeOut();
+			});
+
+			async function loadNavigation(){
+				enabledFeatures = await Feature.getAvailableFeatures();
+				permittedFeatures = await Feature.getPermittedFeatures();
+
+				let possiblyUnavailable = document.getElementsByClassName("possibly-unavailable");
+				Array.from(possiblyUnavailable).forEach(i => {
+					let hide = false;
+					if(i.getAttribute("require-webinterface-admin") == "true" && !user.isAdmin()){
+						hide = true;
+					}
+
+					if(i.getAttribute("require-admin") == "true" && !isGuildAdmin){
+						hide = true;
+					}
+
+					if(i.getAttribute("required-feature") != null) {
+						if(!enabledFeatures.some(f => f.name().toLowerCase() == i.getAttribute("required-feature").toLowerCase())){
+							hide = true;
+						}
+
+						if(!permittedFeatures.some(f => f.name().toLowerCase() == i.getAttribute("required-feature").toLowerCase())){
+							hide = true;
+						}
+					}
+					
+					if(hide) {
+						$(i).hide();
+					}else {
+						$(i).show();
+					}
+
+					if(i.getAttribute("module") != null){
+						let mod = modules.find(m => m.getID() == i.getAttribute("module").toUpperCase());
+						if(mod != null && !mod.isEnabled()) i.setAttribute("disabled", true);
+					}
+				});
+
+				let sections = document.getElementsByClassName("navigation-section");
+				Array.from(sections).forEach(section => {
+					if(Array.from(section.children).slice(1, section.children.length).every(ch => ch.style.display == "none")){
+						$(section).hide();
+					}else{
+						$(section).show();
+					}
+				});
+
+				$(".navigation-item").click(function() {
+					$(".navigation-item").removeClass("selected");
+					$(this).addClass("selected");
+					return(false);
+				});
+
+				$(".navigation-category").click(function() {
+					$(this).find(">:first-child").toggleClass("up");
+					let children = $(this).closest(".navigation-section").children().slice(1);
+					$(children).toggleClass("navigation-section-toggled");
+				});
+			}
+
+			function checkModuleEnabled(mod){
+				let m = modules.find(m => m.getID() == mod);
+				if(m == null || !m.isEnabled()) {
+					redirectToDashboard();
+					return false;
+				}
+				return true;
+			}
+
+			function checkFeatureEnabled(feature, redirect = true){
+				let success = true;
+				if(!enabledFeatures.some(f => f.name().toLowerCase() == feature.toLowerCase())){
+					success = false;
+				}
+				if(!permittedFeatures.some(f => f.name().toLowerCase() == feature.toLowerCase())){
+					success = false;
+				}
+				if(!success && redirect) redirectToDashboard();
+				return success;
+			}
+
+			function checkGuildAdmin(){
+				if(!isGuildAdmin){
+					redirectToDashboard();
+					return false;
+				}
+				return true;
+			}
+
+			function checkWebinterfaceAdmin(){
+				if(!user.isAdmin()){
+					redirectToDashboard();
+					return false;
+				}
+				return true;
+			}
+
+			function removeOpenDynamicSites(){
+				let dynamicSites = document.getElementsByClassName("dynamic-site-outer");
+				Array.from(dynamicSites).forEach(site => site.remove());
+			}
+
+			function redirect(clicked, page){
+				removeOpenDynamicSites();
+				if(clicked != null && clicked.getAttribute("module") != null) {
+					let resp = modules.find(m => m.id == clicked.getAttribute("module").toUpperCase());
+					if(resp == null) return;
+					if(!resp.isEnabled()) {
+						let dialog = new Dialog();
+
+						dialog.addHeader(new DialogHeader()
+							.setTitle("Enable module")
+							.setSubtitle(resp.getName()));
+
+						let btnYes = new UIButton("Yes");
+						btnYes.setStyle("background-color: var(--green);");
+						btnYes.onInteract(() => {
+							Module.enableModule(clicked.getAttribute("module"));
+							resp.enabled = true;
+
+							let navigationItems = document.getElementsByClassName("navigation-item");
+							let items = Array.from(navigationItems).filter(i => i.getAttribute("module") != null && i.getAttribute("module").toUpperCase() == resp.getID());
+							items.forEach(i => i.removeAttribute("disabled"));
+
+							$(contentContainer).empty();
+							$(contentContainer).load("./" + page);
+
+							window.location.hash = page.replace(".php", "");
+
+							dialog.close();
+						});
+
+						let btnNo = new UIButton("No");
+						btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+						btnNo.onInteract(() => dialog.close());
+
+
+						dialog.addField(new DialogEmptyField()
+							.addUIElement(btnYes)
+							.addUIElement(btnNo)
+							.setStyle("flex-direction: row;"));
+
+						return;
+					}
+					$(contentContainer).empty();
+					$(contentContainer).load("./" + page);
+					
+					window.location.hash = page.replace(".php", "");
+					return;
+				}
+
+				$(contentContainer).empty();
+				$(contentContainer).load("./" + page);
+
+				window.location.hash = page.replace(".php", "");
+			}
+
+			function logout(){
+				Webinterface.logout();
+			}
+
+			function redirectToDashboard(){
+				$(contentContainer).empty();
+				$(contentContainer).load("./dashboard");
+				window.location.hash = "dashboard";
+			}
+
+			function reloadTab(){
+				$(contentContainer).empty();
+				$(contentContainer).load((window.location.hash == "" ? "./dashboard" : "./" + window.location.hash.substring(1)), function(a, b, c){
+					if(c.status != 200) {
+						$(contentContainer).load("./dashboard");
+						window.location.hash = "dashboard";
+					}
+				});
+			}
+
+			function redirectFromFile(file){
+				location.href = file;
+			}
+
+			function settingsDialog(){
+				let s = document.getElementById("scrollbars");
+
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Settings"));
+
+				if(isGuildAdmin){
+					let botDropdown = new UIDropdown()
+						.addUIElements(availableBots.map(bot => new UIDropdownElement()
+							.setAttribute("value", bot.getIdentifier())
+							.addText(bot.getIdentifier())
+							.onInteract(() => {
+								Webinterface.setDefaultBot(bot.getIdentifier());
+								loadNavigation();
+								redirectToDashboard();
+							})));
+
+					botDropdown.findElementByAttribute("value", botIdentifier);
+
+					dialog.addField(new DialogField()
+						.setTitle("Bot")
+						.addUIElement(botDropdown));
+				}
+
+				/*Scrollbars*/
+
+				let scrollbars = new UICheckboxWithText();
+				scrollbars.setText("Enable/Disable scrollbars")
+				scrollbars.getCheckboxInput().checked = scrollbarsEnabled;
+				scrollbars.onInteract(() => {
+					if(scrollbarsEnabled){
+						disableScrollbars();
+						scrollbarsEnabled = false;
+					}else{
+						let scrollbarLink = document.getElementById("scrollbars");
+						scrollbarLink.remove();
+						scrollbarsEnabled = true;
+					}
+				});
+
+				dialog.addField(new DialogField()
+					.setTitle("Webinterface scrollbars")
+					.addUIElement(scrollbars));
+
+				/*Scrollbars*/
+
+				if(isGuildAdmin){
+					let textBasedCommands = new UICheckboxWithText();
+					textBasedCommands.setID("text-based-commands");
+					textBasedCommands.setText("Enable/Disable text-based commands");
+					textBasedCommands.getCheckboxInput().checked = settings.getEnableTextCommands();
+					textBasedCommands.onInteract((elem) => Settings.setEnableTextCommands(elem.checked));
+
+					dialog.addField(new DialogField()
+						.setTitle("Text-based commands")
+						.addUIElement(textBasedCommands));
+				}
+			}
+
+			function disableScrollbars(){
+				let head = document.getElementsByTagName('HEAD')[0];
+				let el = document.createElement("link");
+				el.id = "scrollbars";
+				el.href = "css/disable-scrollbars.css";
+				el.rel = "stylesheet";
+				head.appendChild(el);
+			}
+		</script>
+	</head>
+	<body>
+		<div class="loader">
+			<div class="loader-inner">
+				<div class="dot-flashing"></div>
+			</div>
+		</div>
+		<div id="navigation-menue">
+			<div id="navigation-header">
+				<a id="bot-title">Graphite</a>
+			</div>
+			<div id="navigation-content">
+				<div class="navigation-section">
+					<div class="navigation-item" onclick="redirect(this, 'dashboard')">
+						<img src="/img/dashboard.svg" alt="#"/>
+						<span>Dashboard</span>
+					</div>
+					<div class="navigation-item" onclick="redirectFromFile('/redirect/discord')">
+						<img src="/img/discord.svg" alt="#"/>
+						<span>Support server</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" require-webinterface-admin="true" onclick="redirect(this, 'admin')" style="display: none;">
+						<img src="/img/permissions.svg" alt="#"/>
+						<span>Admin panel</span>
+					</div>
+				</div>
+				<div class="navigation-section">
+					<span class="navigation-category">Documentation & Legal<img src="/img/arrow.svg" alt="#"></span>
+					<div class="navigation-item" onclick="redirectFromFile('/redirect/documentation')">
+						<img src="/img/docs.svg" alt="#"/>
+						<span>Documentation</span>
+					</div>
+					<div class="navigation-item" onclick="redirectFromFile('../privacy-policy')">
+						<img src="/img/docs.svg" alt="#"/>
+						<span>Privacy Policy</span>
+					</div>
+					<div class="navigation-item" onclick="redirectFromFile('../impressum')">
+						<img src="/img/docs.svg" alt="#"/>
+						<span>Legal Notice</span>
+					</div>
+				</div>
+				<div class="navigation-section">
+					<span class="navigation-category">Social<img src="/img/arrow.svg" alt="#"></span>
+					<div class="navigation-item possibly-unavailable" required-feature="twitch" module="twitch" onclick="redirect(this, 'twitch')" disabled>
+						<img src="/img/twitch.svg" alt="#"/>
+						<span>Twitch</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="twitter" module="twitter" onclick="redirect(this, 'twitter')">
+						<img src="/img/twitter.svg" alt="#"/>
+						<span>Twitter</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="reddit" module="reddit" onclick="redirect(this, 'reddit')">
+						<img src="/img/reddit.svg" alt="#"/>
+						<span>Reddit</span>
+					</div>
+				</div>
+				<div class="navigation-section">
+					<span class="navigation-category">Management & Moderation<img src="/img/arrow.svg" alt="#"></span>
+					<div class="navigation-item possibly-unavailable" require-admin="true" onclick="redirect(this, 'permissions')">
+						<img src="/img/permissions.svg" alt="#"/>
+						<span>Permissions</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="role_management" module="role_management" onclick="redirect(this, 'role_management')">
+						<img src="/img/roles.svg" alt="#"/>
+						<span>Role management</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="channel_management" module="channel_management" onclick="redirect(this, 'channel_management')">
+						<img src="/img/hash_white.svg" alt="#"/>
+						<span>Channel management</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="moderation" module="moderation" onclick="redirect(this, 'moderation')">
+						<img src="/img/moderation.svg" alt="#"/>
+						<span>Moderation</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="statistics" module="moderation" onclick="redirect(this, 'stats')">
+						<img src="/img/stats.svg" alt="#"/>
+						<span>Stats</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="moderation" module="moderation" onclick="redirect(this, 'modlog')">
+						<img src="/img/modlog.svg" alt="#"/>
+						<span>Modlog</span>
+					</div>
+				</div>
+				<div class="navigation-section">
+					<span class="navigation-category">Backups & Templates<img src="/img/arrow.svg" alt="#"></span>
+					<div class="navigation-item possibly-unavailable" required-feature="backups" module="backups" onclick="redirect(this, 'backups')">
+						<img src="/img/backups.svg" alt="#"/>
+						<span>Backups</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="backups" module="backups" onclick="redirect(this, 'templates')">
+						<img src="/img/backups.svg" alt="#"/>
+						<span>Templates</span>
+					</div>
+				</div>
+				<div class="navigation-section">
+					<span class="navigation-category">Scripting<img src="/img/arrow.svg" alt="#"></span>
+					<div class="navigation-item possibly-unavailable" required-feature="scripting" module="scripting" onclick="redirect(this, 'scripts')">
+						<img src="/img/scripts.svg" alt="#"/>
+						<span>Scripting</span>
+					</div>
+				</div>
+				<div class="navigation-section">
+					<span class="navigation-category">Music<img src="/img/arrow.svg" alt="#"></span>
+					<div class="navigation-item possibly-unavailable" required-feature="music" module="music" onclick="redirect(this, 'music')">
+						<img src="/img/Music/music.svg" alt="#"/>
+						<span>Music</span>
+					</div>
+				</div>
+				<div class="navigation-section">
+					<span class="navigation-category">Other<img src="/img/arrow.svg" alt="#"></span>
+					<div class="navigation-item possibly-unavailable" required-feature="greeter" module="greeter" onclick="redirect(this, 'greeter')">
+						<img src="/img/welcome.svg" alt="#"/>
+						<span>Greeter</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="record" module="record" onclick="redirect(this, 'record')">
+						<img src="/img/record.svg" alt="#"/>
+						<span>Record</span>
+					</div>
+					<div class="navigation-item possibly-unavailable" required-feature="custom_commands" onclick="redirect(this, 'commands')">
+						<img src="/img/customcommands.svg" alt="#"/>
+						<span>CustomCommands</span>
+					</div>
+				</div>
+			</div>
+			<div id="navigation-footer">
+				<!--<div id="bots"></div>-->
+				<div id="settings">
+					<a>Settings</a>
+					<img src="/img/arrow.svg" onclick="settingsDialog()"/>
+				</div>
+				<div id="server">
+					<a id="selected-server"></a>
+					<img src="/img/arrow.svg" onclick="redirectFromFile('../webinterface')"/>
+				</div>
+				<a id="logout" onclick="logout()">Logout</a>
+			</div>
+		</div>
+		<div id="content-container">
+			<div id="site-actions"></div>
+		</div>
+		<div id="snackbar"></div>
+	</body>
+</html>

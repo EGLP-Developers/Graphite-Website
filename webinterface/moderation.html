@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/moderation.css">
+		
+		<script>
+			var punishments = [];
+			var modroles = [];
+			var reports = [];
+			var chatreports = [];
+			var modLog;
+			var supportQueue;
+			var autoactions = [];
+			var chatReportsEnabled = false;
+
+			
+			var commonBadWords = ["ass", "asses", "asshead", "asshole", "assholes", "ass-kicking", "asswipe", "ballz", "bastard", "bastards", "bastard's", "bitch", "bitches", "blowjob", "blowjobs", "bullshit", "bull-shit", "bullshitting", "chicken-shit", "cock", "cocks", "cocksucker", "cock-sucker", "crap", "crotch", "cum", "cunt", "dammit", "dick", "dickhead", "dickheads", "dicks", "dipshit", "dogshit", "dumbass", "dyke", "dykes", "erect", "fag", "faggot", "faggots", "fags", "fellatio", "fluffer", "fluffers", "fuck", "fucked", "fucker", "fuckers", "fucker's", "fuckface", "fuckin", "fuckin'", "fucking", "fucks", "fuckwad", "fuckwads", "fuking", "gawd-damn", "godammit", "goddammit", "goddamn", "hard-on", "hard-ons", "hell", "helluva", "honey-tits", "hooker", "humjob", "jerkhole", "limp-dick", "limp-dicked", "fucker", "motherfucker", "motherfucker", "fuckas", "nigga", "nigger", "niggers", "penis", "pigfucker", "pigfuckers", "piss", "piss", "pissed", "pisser", "pissing", "poopchute", "prick", "pricks", "pro-fesh-anals", "pussies", "pussy", "sex", "sexual", "sheeeeit", "sheeee-it", "sheee-it", "shit", "shit-for-brains", "shithead", "shitheads", "shithole", "shitteee", "shitty", "shitwater", "smartass", "snatch", "sodomize", "sonuvabitch", "tit", "tits", "titties", "vagina", "vibrator", "whore", "whores", "whorez"];
+
+			var chatreportContainer = document.getElementById("chatreports");
+			var loggingChannelContainer = document.getElementById("logging-channel");
+			var reportsContainer = document.getElementById("reports");
+			var enableChatreports = document.getElementById("enable-chatreports");
+			var supportQueueContainer = document.getElementById("support-queue");
+			var autoActionsContainer = document.getElementById("auto-actions-list");
+			var modroleContainer = document.getElementById("mod-roles");
+
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('MODERATION')) return;
+                if(!checkModuleEnabled('MODERATION')) return;
+
+                modroles = await Moderator.getModeratorRoles();
+                modLog = await Moderator.getModLogChannel();
+                supportQueue = await Support.getSupportQueue();
+                reports = await Report.getReports();
+                chatreports = await ChatReport.getChatReports();
+                autoactions = await AutoAction.getAutoActions();
+                chatReportsEnabled = await ChatReport.chatReportsEnabled();
+
+                initModroles();
+                initAutoActions();
+                initLoggingChannel();
+                initSupportQueue();
+                initReports();
+                initChatreports();
+            });
+
+            function initModroles(){
+                let modroleSelector = new UIListSelector();
+                modroleSelector.addRoles((role, element) => {
+                    Moderator.addModeratorRole(role.getID());
+                    modroleSelector.addListElement(new UIListSelectorElement()
+                        .addImage("/img/at.svg")
+                        .addText(role.getName())
+                        .setAttribute("value", role.getID())
+                        .onRemove(() => {
+                            element.setAttribute("disabled", false);
+                            Moderator.removeModeratorRole(role.getID());
+                        })
+                        .setStyle("border: 1px solid " + getHexColor(role.getColorRaw())));
+                });
+                modroleContainer.appendChild(modroleSelector.build());
+
+                modroles.forEach(modrole => {
+                    modroleSelector.addListElement(new UIListSelectorElement()
+                        .addText(modrole.getName())
+                        .setAttribute("value", modrole.getID())
+                        .onRemove(() => Moderator.removeModeratorRole(modrole.getID()))
+                        .setStyle("border: 1px solid " + getHexColor(modrole.getColorRaw())));
+                });
+            }
+
+            function initSupportQueue(){
+                let supportQueueDropdown = new UIDropdown();
+                supportQueueDropdown.setPlaceholder("Select support queue...");
+                supportQueueDropdown.addVoiceChannels((c) => Support.setSupportQueue(c.getID()));
+                if(supportQueue != null) supportQueueDropdown.findElementByAttribute("value", supportQueue.getID());
+                supportQueueDropdown.x(() => {
+                    Support.unsetSupportQueue();
+                    supportQueueDropdown.setPlaceholder("Select support queue...");
+                });
+                supportQueueContainer.appendChild(supportQueueDropdown.build());
+            }
+
+            function initLoggingChannel(){
+                let loggingChannelDropdown = new UIDropdown();
+                loggingChannelDropdown.setPlaceholder("Select logging channel...");
+                loggingChannelDropdown.addTextChannels((c) =>  Moderator.setModLogChannel(c.getID()));
+                if(modLog != null) loggingChannelDropdown.findElementByAttribute("value", modLog.getID());
+                loggingChannelDropdown.x(() => {
+                    Moderator.unsetModLogChannel();
+                    loggingChannelDropdown.setPlaceholder("Select logging channel...");
+                });
+                loggingChannelContainer.appendChild(loggingChannelDropdown.build());
+            }
+
+            function initAutoActions(){
+                for(let autoaction of autoactions){
+                    autoActionsContainer.appendChild(createAutoActionItem(autoaction));
+                }
+            }
+
+            function initReports(){
+                let reportElements = [];
+                let reportDropdown = new UIDropdown();
+                reportDropdown.setPlaceholder("Select report to get information...");
+                
+                for(let report of reports){
+                    let e = new UIDropdownElement();
+                    e.addText(report.getReporter());
+                    e.addSubtext("reported");
+                    e.addText(report.getReported());
+                    e.onRemove(() => Report.deleteReport(report.getID()));
+                    e.onInteract(() => {
+                        let dialog = new Dialog();
+
+                        dialog.addHeader(new DialogHeader()
+                            .setTitle("Report stats")
+                            .setSubtitle("Report: " + report.getID()));
+
+                        let reporter  = new DialogField();
+                        reporter.setTitle("Reporter");
+                        reporter.setSubtitle(report.getReporter());
+                        dialog.addField(reporter);
+
+                        let reported  = new DialogField();
+                        reported.setTitle("Reported");
+                        reported.setSubtitle(report.getReported());
+                        dialog.addField(reported);
+
+                        let reportedAt  = new DialogField();
+                        reportedAt.setTitle("Reported at");
+                        reportedAt.setSubtitle(new Date(report.getTimestamp()));
+                        dialog.addField(reportedAt);
+
+                        let reason  = new DialogField();
+                        reason.setTitle("Reason");
+                        reason.addUIElement(new UITextInput()
+                            .setValue(report.getReason())
+                            .readonly());
+                        dialog.addField(reason);
+                    });
+                    reportDropdown.addUIElement(e);
+                }
+
+                reportsContainer.appendChild(reportDropdown.build());
+            }
+
+            async function initChatreports(){
+                let chatreportElements = [];
+                let user = {};
+
+                let chatreportDropdown = new UIDropdown();
+                chatreportDropdown.setPlaceholder("Select chatreport to get information...");
+
+                for(let chatreport of chatreports){
+                    let reporterID = chatreport.getReporter();
+
+                    let usr = user[reporterID] != null ? user[reporterID] : await User.getUserByID(reporterID);
+                    if(user[reporterID] == null) user[reporterID] = usr;
+
+                    let el = new UIDropdownElement();
+                    el.addText(usr.getFullName());
+                    el.addSubtext(new Date(chatreport.getTimestamp()));
+                    el.setAttribute("value", chatreport.getID());
+                    el.onRemove(() => ChatReport.deleteChatReport(chatreport.getID()));
+                    el.onInteract(() => {
+                        let d = new Dialog();
+
+                        d.addHeader(new DialogHeader()
+                            .setTitle("Chatreport")
+                            .setSubtitle(chatreport.getID()));
+
+                        let fDrop = new DialogField();
+                        fDrop.setTitle("Decryption key");
+                        let drop = new UIDrop();
+                        drop.setText("Attach decryption key");
+                        drop.onDrop((event) => {
+                            if(event.dataTransfer.files > 1) return;
+                            let f = event.dataTransfer.files[0];
+
+                            let fr = new FileReader();
+                            fr.onloadend = async () => {
+                                let b64 = window.btoa(fr.result);
+                                drop.setAttribute("value", b64);
+                                drop.setText("Key attached");
+                                history.removeAttribute("disabled");
+                            };
+                            fr.readAsBinaryString(f);
+                        });
+                        fDrop.addUIElement(drop);
+                        d.addField(fDrop);
+
+                        let history = new UIButton("Chat history");
+                        history.setStyle("background-color: var(--blue)");
+                        history.onInteract(() => {
+                            getChatHistoryFor(chatreport.getID(), drop.getAttribute("value"));
+                            d.close();
+                        });
+                        history.setAttribute("disabled", true);
+
+                        d.addField(new DialogEmptyField()
+                            .addUIElement(history));
+                    });
+                    chatreportDropdown.addUIElement(el);
+                }
+
+                chatreportContainer.appendChild(chatreportDropdown.build());
+
+                let enable = new UICheckbox().onInteract(async () => {
+                    if(chatReportsEnabled){
+                        ChatReport.disableChatReports();
+                        chatreports.forEach(chatreport => {
+                            chatreportDropdown.removeElementByValue(chatreport.getID());
+                            ChatReport.deleteChatReport(chatreport.getID());
+                        });
+                    }else{
+                        let resp = await ChatReport.enableChatReports();
+                        let s = base64ToArrayBuffer(resp);
+                        download(s, "chatreports.key", "application/octet-stream");
+                    }
+                    chatReportsEnabled = enable.firstChild.checked;
+                })
+                .setStyle("margin-left: 10px;")
+                .build();
+                enable.firstChild.checked = chatReportsEnabled;
+                enableChatreports.appendChild(enable);
+            }
+
+            async function getChatHistoryFor(chatreportID, key){
+                let history = await ChatReport.getChatReportHistory(chatreportID, key);
+
+                let d = new DynamicSite();
+
+                d.addHeader(new DynamicSiteHeader()
+                    .setTitle("Chat history"));
+
+                let field = new DynamicSiteEmptyField();
+
+                for(let message of history){
+                    let item = document.createElement("div");
+                    item.classList.add("discord-message");
+
+                    let avatar = document.createElement("img");
+                    avatar.src = message.getAuthorAvatarURL();
+                    item.appendChild(avatar);
+
+                    let content = document.createElement("div");
+                    content.classList.add("discord-message-content");
+                    item.appendChild(content);
+
+                    let title = document.createElement("div");
+                    title.classList.add("discord-message-title");
+                    title.innerText = message.getAuthorName();
+                    content.appendChild(title);
+
+                    let botTag = document.createElement("a");
+                    botTag.classList.add("discord-message-bot-tag");
+                    botTag.text = "BOT";
+                    title.appendChild(botTag);
+
+                    if(message.getContent() != null){
+                        let cont = document.createElement("a");
+                        cont.text = message.getContent();
+                        content.appendChild(cont);
+                    }
+
+                    if(message.getEmbeds().length != 0){
+                        let embeds = document.createElement("div");
+                        embeds.classList.add("discord-message-embeds");
+
+                        for(let embed of message.getEmbeds()){
+                            let emd = document.createElement("div");
+                            emd.classList.add("discord-embed");
+                            emd.style.borderLeft = "3px solid " + getHexColor(embed.getColor());
+
+                            //AUTHOR
+                            let author = document.createElement("div");
+                            author.classList.add("discord-embed-author");
+
+                            if(embed.getAuthorAvatarURL() != null){
+                                let authorImg = document.createElement("img");
+                                authorImg.classList.add("discord-embed-author-avatar");
+                                authorImg.src = embed.getAuthorAvatarURL()
+                                author.appendChild(authorImg);
+                            }
+
+                            if(embed.getAuthorName() != null){
+                                let authorName = document.createElement("a");
+                                authorName.classList.add("discord-embed-author-name");
+                                authorName.text = embed.getAuthorName();
+                                if(embed.getAuthorURL() != null){
+                                    authorName.href = embed.getAuthorURL();
+                                }
+                                author.appendChild(authorName);
+                            }
+
+                            emd.appendChild(author);
+
+                            //DESCRIPTION
+                            if(embed.getDescription() != null){
+                                let desc = document.createElement("a");
+                                desc.classList.add("discord-embed-description");
+                                desc.text = embed.getDescription();
+                                emd.appendChild(desc);
+                            }
+
+                            //FIELDS
+                            if(embed.getFields().length != 0){
+                                let fields = document.createElement("div");
+                                fields.classList.add("discord-embed-fields");
+
+                                for(let field of embed.getFields()){
+                                    let item = document.createElement("div");
+                                    item.classList.add("discord-embed-field");
+                                    item.setAttribute("inline", field.isInline);
+
+                                    let fTitle = document.createElement("a");
+                                    fTitle.classList.add("discord-embed-field-title");
+                                    fTitle.text = field.getName();
+                                    item.appendChild(fTitle);
+
+                                    let fDesc = document.createElement("a");
+                                    fDesc.classList.add("discord-embed-field-value");
+                                    fDesc.text = field.getValue();
+                                    item.appendChild(fDesc);
+
+                                    fields.appendChild(item);
+                                }
+
+                                emd.appendChild(fields);
+                            }
+
+                            //FOOTER
+                            let footer = document.createElement("div");
+                            footer.classList.add("discord-embed-footer");
+
+                            if(embed.getFooterIconURL() != null){
+                                let footerImg = document.createElement("img");
+                                footerImg.classList.add("discord-embed-footer-icon");
+                                footerImg.src = embed.getFooterIconURL();
+                                footer.appendChild(footerImg);
+                            }
+
+                            if(embed.getFooterText() != null){
+                                let footerTxt = document.createElement("a");
+                                footerTxt.classList.add("discord-embed-footer-text");
+                                footerTxt.text = embed.getFooterText();
+                                footer.appendChild(footerTxt);
+                            }
+
+                            emd.appendChild(footer);
+
+                            embeds.appendChild(emd);
+                        }
+
+                        content.appendChild(embeds);
+                    }
+
+                    field.addElement(item);
+                }
+
+                d.addField(field);
+            }
+
+            async function automod(t){
+                let settings = null;
+                let dialog = new Dialog();
+
+                dialog.addHeader(new DialogHeader()
+                    .setTitle("Auto moderator"));
+
+                let fPByAutoActions = new DialogField();
+                fPByAutoActions.setTitle("Additional options");
+
+                switch(t){
+                    case "BAD_WORDS":
+                        settings = await BadWordsSettings.getBadWordsSettings();
+
+                        let fBadWords = new DialogField();
+                        fBadWords.setTitle("Bad words");
+
+                        let wordInp = new UIInput();
+                        wordInp.setPlaceholder("Enter word and press enter");
+                        fBadWords.addUIElement(wordInp);
+
+                        let blacklistedWords = new UIListSelector();
+                        blacklistedWords.removeAddableOption();
+                        settings.getBadWords().forEach(w => {
+                            blacklistedWords.addListElement(new UIListSelectorElement()
+                                .addText(w)
+                                .onRemove(() => removeArrayElement(settings.getBadWords(), w)));
+                        });
+                        blacklistedWords.setStyle("margin-top: 5px;");
+                        fBadWords.addUIElement(blacklistedWords);
+
+                        wordInp.onEnter(() => {
+                            if(wordInp.getValue() == "") return;
+                            let words = wordInp.getValue().split(" ");
+                            words.forEach(w => {
+                                let badWord = w.toLowerCase();
+                                if(settings.badWords.includes(badWord)){
+                                    showAlert("Bad word already added", true);
+                                    return;
+                                }
+                                settings.badWords.push(badWord);
+                                blacklistedWords.addListElement(new UIListSelectorElement()
+                                    .addText(badWord)
+                                    .onRemove(() => removeArrayElement(settings.getBadWords(), badWord)));
+                            });
+
+                            wordInp.setValue("");
+                        });
+
+                        dialog.addField(fBadWords);
+
+                        let fF = new DialogField();
+                        fF.setTitle("Bad word actions");
+                        fF.setStyle("flex-direction: row;");
+
+                        let cBW = new UIButton("Add common bad words");
+                        cBW.setStyle("background-color: var(--primary-color);");
+                        cBW.onInteract(() => {
+                            for(let badWord of commonBadWords){
+                                if(settings.badWords.includes(badWord)) continue;
+                                settings.badWords.push(badWord);
+                                blacklistedWords.addListElement(new UIListSelectorElement()
+                                    .addText(badWord)
+                                    .onRemove(() => removeArrayElement(settings.getBadWords(), badWord)));
+                            }
+                        });
+                        fF.addUIElement(cBW);
+
+                        let rAll = new UIButton("Remove all bad words");
+                        rAll.setStyle("background-color: var(--primary-color);");
+                        rAll.onInteract(() => {
+                            settings.badWords = [];
+                            blacklistedWords.clearListElements();
+                        });
+                        fF.addUIElement(rAll);
+
+                        dialog.addField(fF);
+
+                        let subWordMatches = new UICheckboxWithText();
+                        subWordMatches.setText("Sub word matches?");
+                        subWordMatches.getCheckboxInput().checked = settings.isSubwordMatches();
+                        subWordMatches.onInteract(() => {
+                            settings.setSubwordMatches(subWordMatches.getCheckboxInput().checked);
+                        });
+                        fPByAutoActions.addUIElement(subWordMatches);
+
+                        let normalizeText = new UICheckboxWithText();
+                        normalizeText.setText("Normalize text? (Detects e.g. different fonts)");
+                        normalizeText.getCheckboxInput().checked = settings.isNormalizeText();
+                        normalizeText.onInteract(() => {
+                            settings.setNormalizeText(normalizeText.getCheckboxInput().checked);
+                        });
+                        fPByAutoActions.addUIElement(normalizeText);
+                        break;
+                    case "REPEATED_TEXT":
+                        settings = await RepeatedTextSettings.getRepeatedTextSettings();
+
+                        let fMaxRepeats = new DialogField();
+                        fMaxRepeats.setTitle("Max repeats");
+                        let mmMaxRepeats = new UIMinMaxSelector();
+                        mmMaxRepeats.onInteract((a) => settings.setMaxRepeats(a));
+                        mmMaxRepeats.setValue(settings.getMaxRepeats());
+                        fMaxRepeats.addUIElement(mmMaxRepeats);
+                        dialog.addField(fMaxRepeats);
+
+                        let fMinLength = new DialogField();
+                        fMinLength.setTitle("Min length of repeated text");
+                        let mmMinLength = new UIMinMaxSelector();
+                        mmMinLength.onInteract((a) => settings.setMinTextLength(a));
+                        mmMinLength.setValue(settings.getMinTextLength());
+                        fMinLength.addUIElement(mmMinLength);
+                        dialog.addField(fMinLength);
+                        break;
+                    case "SERVER_INVITES":
+                        settings = await DiscordInvitesSettings.getDiscordInvitesSettings();
+
+                        let fPassedInvites = new DialogField();
+                        fPassedInvites.setTitle("Allowed invites");
+
+                        let linkInp = new UIInput();
+                        linkInp.setPlaceholder("Enter invite link and press enter");
+                        fPassedInvites.addUIElement(linkInp);
+
+                        let passedInvites = new UIListSelector();
+                        passedInvites.removeAddableOption();
+                        settings.getAllowedInviteCodes().forEach(w => {
+                            passedInvites.addListElement(new UIListSelectorElement()
+                                .addText(w)
+                                .onRemove(() => removeArrayElement(settings.getAllowedInviteCodes(), w)));
+                        });
+                        passedInvites.setStyle("margin-top: 5px;");
+                        fPassedInvites.addUIElement(passedInvites);
+
+                        linkInp.onEnter(() => {
+                            settings.allowedInviteCodes.push(linkInp.getValue().toLowerCase());
+                            passedInvites.addListElement(new UIListSelectorElement()
+                                .addText(linkInp.getValue().toLowerCase())
+                                .onRemove(() => removeArrayElement(settings.getAllowedInviteCodes(), linkInp.getValue().toLowerCase())));
+                        });
+
+                        dialog.addField(fPassedInvites);
+                        break;
+                    case "EXTERNAL_LINKS":
+                        settings = await ExternalLinksSettings.getExternalLinksSettings();
+
+                        let fPassedLinks = new DialogField();
+                        fPassedLinks.setTitle("Allowed links");
+
+                        let eLinkInp = new UIInput();
+                        eLinkInp.setPlaceholder("Enter link and press enter");
+                        fPassedLinks.addUIElement(eLinkInp);
+
+                        let passedLinks = new UIListSelector();
+                        passedLinks.removeAddableOption();
+                        settings.getAllowedLinks().forEach(w => {
+                            passedLinks.addListElement(new UIListSelectorElement()
+                                .addText(w)
+                                .onRemove(() => removeArrayElement(settings.getAllowedLinks(), w)));
+                        });
+                        passedLinks.setStyle("margin-top: 5px;");
+                        fPassedLinks.addUIElement(passedLinks);
+
+                        eLinkInp.onEnter(() => {
+                            settings.allowedLinks.push(eLinkInp.getValue().toLowerCase());
+                            passedLinks.addListElement(new UIListSelectorElement()
+                                .addText(eLinkInp.getValue().toLowerCase())
+                                .onRemove(() => removeArrayElement(settings.getAllowedLinks(), eLinkInp.getValue().toLowerCase())));
+                        });
+
+                        dialog.addField(fPassedLinks);
+                        break;
+                    case "EXCESSIVE_CAPS":
+                        settings = await ExcessiveCapsSettings.getExcessiveCapsSettings();
+
+                        let fMaxCapsPercent = new DialogField();
+                        fMaxCapsPercent.setTitle("Min caps percent");
+                        let mmMaxCaps = new UIMinMaxSelector();
+                        mmMaxCaps.onInteract((a) => settings.setMaxCapsPercent(a));
+                        mmMaxCaps.setValue(settings.getMinCapsPercent());
+                        fMaxCapsPercent.addUIElement(mmMaxCaps);
+                        dialog.addField(fMaxCapsPercent);
+
+                        let fCheckCaps = new DialogField();
+                        fCheckCaps.setTitle("Caps check");
+                        let cCheckInp = new UIInput();
+                        cCheckInp.onKeyUp((input) => {
+                            let upperCaseLetter = 0;
+                            let idx;
+                            for(idx = 0; idx < input.value.length; idx++){
+                                let v = input.value.charAt(idx);
+                                if(v == v.toLowerCase()) continue;
+                                if(v != " " && v == v.toUpperCase()) {
+                                    upperCaseLetter++;
+                                    continue;
+                                }
+                            }
+                            input.style.color = (input.value.length > settings.getMinTextLength() && (upperCaseLetter / input.value.length) > (settings.getMinCapsPercent() / 100) ? "var(--red)" : "white");
+                        });
+                        fCheckCaps.addUIElement(cCheckInp);
+                        dialog.addField(fCheckCaps);
+
+                        let fMinLengthE = new DialogField();
+                        fMinLengthE.setTitle("Min length of text");
+                        let mmMinLengthE = new UIMinMaxSelector();
+                        mmMinLengthE.onInteract((a) => settings.setMinTextLength(a));
+                        mmMinLengthE.setValue(settings.minTextLength);
+                        fMinLengthE.addUIElement(mmMinLengthE);
+                        dialog.addField(fMinLengthE);
+                        break;
+                    case "EXCESSIVE_EMOJIS":
+                        settings = await ExcessiveEmojiSettings.getExcessiveEmojiSettings();
+
+                        let fMaxEmojis = new DialogField();
+                        fMaxEmojis.setTitle("Max emojis");
+                        let mmMaxEmojis = new UIMinMaxSelector();
+                        mmMaxEmojis.onInteract((a) => settings.setMaxEmojis(a));
+                        mmMaxEmojis.setValue(settings.maxEmojis);
+                        fMaxEmojis.addUIElement(mmMaxEmojis);
+                        dialog.addField(fMaxEmojis);
+                        break;
+                    case "EXCESSIVE_SPOILERS":
+                        settings = await ExcessiveSpoilersSettings.getExcessiveSpoilersSettings();
+
+                        let fMaxSpoilers = new DialogField();
+                        fMaxSpoilers.setTitle("Max spoilers");
+                        let mmMaxSpoilers = new UIMinMaxSelector();
+                        mmMaxSpoilers.onInteract((a) => settings.setMaxSpoilers(a));
+                        mmMaxSpoilers.setValue(settings.maxSpoilers);
+                        fMaxSpoilers.addUIElement(mmMaxSpoilers);
+                        dialog.addField(fMaxSpoilers);
+                        break;
+                    case "EXCESSIVE_MENTIONS":
+                        settings = await ExcessiveMentionsSettings.getExcessiveMentionsSettings();
+
+                        let fMaxMentions = new DialogField();
+                        fMaxMentions.setTitle("Max mentions");
+                        let mmMaxMentions = new UIMinMaxSelector();
+                        mmMaxMentions.onInteract((a) => settings.setMaxMentions(a));
+                        mmMaxMentions.setValue(settings.maxMentions);
+                        fMaxMentions.addUIElement(mmMaxMentions);
+                        dialog.addField(fMaxMentions);
+                        break;
+                    case "ZALGO":
+                        settings = await ZalgoSettings.getZalgoSettings();
+                        break;
+                }
+
+                //Trigger events
+                let fTriggerEvent = new DialogField();
+                fTriggerEvent.setTitle("Trigger event");
+                fTriggerEvent.setFieldID("trigger-events");
+                let tEvents = AutoModAction.values();
+                let triggerEventsDropdown = new UIDropdown();
+                tEvents.forEach(ev => {
+                    let el = new UIDropdownElement();
+                    el.addText(ev.getFriendlyName());
+                    el.setAttribute("value", ev.enum_value);
+                    el.onInteract(() => settings.setAction(ev));
+                    triggerEventsDropdown.addUIElement(el);
+                });
+                triggerEventsDropdown.findElementByAttribute("value", settings.getAction().enum_value);
+                fTriggerEvent.addUIElement(triggerEventsDropdown);
+                dialog.addField(fTriggerEvent);
+
+                //Ignored channels
+                let fIgnoredChannels = new DialogField();
+                fIgnoredChannels.setTitle("Ignored channels");
+                fIgnoredChannels.setFieldID("ignored-channels");
+                let sel = new UIListSelector();
+                sel.addTextChannels((channel, element) => {
+                    settings.channels.push(channel.getID());
+                    sel.addListElement(new UIListSelectorElement()
+                        .addText(channel.getName())
+                        .setAttribute("value", channel.getID())
+                        .onRemove(() => removeArrayElement(settings.channels, channel.getID())));
+                });
+                settings.channels.forEach(c => {
+                    let textchannel = textchannels.find(channel => channel.id == c);
+                    sel.addListElement(new UIListSelectorElement()
+                        .addText(textchannel.getName())
+                        .setAttribute("value", textchannel.getID())
+                        .onRemove(() => removeArrayElement(settings.channels, textchannel.getID())));
+                });
+                sel.setContentStyle("width: calc(100% / 2.5);");
+                fIgnoredChannels.addUIElement(sel);
+                dialog.addField(fIgnoredChannels);
+
+                //Ignored roles
+                let fIgnoredRoles = new DialogField();
+                fIgnoredRoles.setTitle("Ignored roles");
+                fIgnoredRoles.setFieldID("ignored-roles");
+                let irSel = new UIListSelector();
+                irSel.addRoles((role, element) => {
+                    settings.roles.push(role.getID());
+                    irSel.addListElement(new UIListSelectorElement()
+                        .addText(role.getName())
+                        .setAttribute("value", role.getID())
+                        .setStyle("border: 1px solid " + getHexColor(role.getColorRaw()) + ";")
+                        .onRemove(() => removeArrayElement(settings.roles, role.getID())));
+                });
+                settings.roles.forEach(c => {
+                    let role = roles.find(role => role.roleID == c);
+                    irSel.addListElement(new UIListSelectorElement()
+                        .addText(role.getName())
+                        .setAttribute("value", role.getID())
+                        .setStyle("border: 1px solid " + getHexColor(role.getColorRaw()) + ";")
+                        .onRemove(() => removeArrayElement(settings.roles, role.getID())));
+                });
+                irSel.setContentStyle("width: calc(100% / 2.5);");
+                fIgnoredRoles.addUIElement(irSel);
+                dialog.addField(fIgnoredRoles);
+
+                let pByAutoActions = new UICheckboxWithText();
+                pByAutoActions.setText("Punishable by auto actions?");
+                pByAutoActions.getCheckboxInput().checked = settings.isPunishable();
+                pByAutoActions.onInteract(() => {
+                    settings.setPunishable(pByAutoActions.getCheckboxInput().checked);
+                });
+                fPByAutoActions.addUIElement(pByAutoActions);
+                dialog.addField(fPByAutoActions);
+
+                let saveBtn = new UIButton("Save & Close");
+                saveBtn.setStyle("background-color: var(--green);");
+                saveBtn.onInteract(() => {
+                    AutoModSettings.setAutoModSettings(settings);
+                    dialog.close();
+                });
+
+                dialog.addField(new DialogEmptyField()
+                    .addUIElement(saveBtn));
+
+                    
+                dialog.changeFieldIndexByID("trigger-events", 0);
+                dialog.changeFieldIndexByID("ignored-channels", 1);
+                dialog.changeFieldIndexByID("ignored-roles", 2);
+            }
+
+            function createAutoActionItem(action){
+                let i = document.createElement("div");
+                i.classList.add("auto-action-item");
+
+                let ac = document.createElement("a");
+                ac.classList.add("auto-action-punishment");
+                ac.text = action.getPunishment().getFriendlyName();
+                i.appendChild(ac);
+
+                if(action.getPunishment().isRequiresDuration()){
+                    let f = document.createElement("a");
+                    f.text = "for " + getFriendlyDuration(action.getPunishmentDuration());
+                    i.appendChild(f);
+                }
+
+                let min = document.createElement("a");
+                min.text = "when someone has " + action.getMinCount() + " or more infractions in the last";
+                i.appendChild(min);
+
+                let timeframe = document.createElement("a");
+                timeframe.text = getFriendlyDuration(action.getTimeframe());
+                i.appendChild(timeframe);
+
+                let delImg = document.createElement("img");
+                delImg.classList.add("auto-action-remove");
+                delImg.addEventListener('click', () => {
+                    event.stopPropagation();
+                    AutoAction.removeAutoAction(action);
+                    i.remove();
+                });
+                delImg.setAttribute("alt", "Delete");
+                delImg.setAttribute("src", "../img/trash.svg");
+                i.appendChild(delImg);
+
+                return i;
+            }
+
+            function addAutoAction(){
+                let selectedPunishment;
+
+                let d = new Dialog();
+
+                d.addHeader(new DialogHeader()
+                    .setTitle("New automated action"));
+
+                let action = new DialogField();
+                action.setTitle("Action");
+                action.setSubtitle("Which action should be performed on punishment");
+                let punishmentDropdown = new UIDropdown();
+                let timeInput;
+                let tempPunishment = () => {
+                    let time = new DialogField();
+                    time.setFieldID("punishment-timeframe");
+                    time.setTitle("Time");
+                    time.setSubtitle("How long the member should be punished");
+                    timeInput = new UIInput();
+                    timeInput.setPlaceholder("Format: 1d2h or 2w1d2h");
+                    time.addUIElement(timeInput);
+                    return time;
+                }
+                AutoModPunishment.values().forEach(punishment => {
+                    let el = new UIDropdownElement();
+                    el.addText(punishment.getFriendlyName());
+                    el.setAttribute("value", punishment.name());
+                    el.onInteract(() => {
+                        if(punishment.name().startsWith("TEMP_")){
+                            let tempPunishmentField = tempPunishment();
+                            d.addField(tempPunishmentField);
+                            d.changeFieldIndexByID("punishment-timeframe", 1);
+                        }else{
+                            d.removeFieldByID("punishment-timeframe");
+                        }
+                        selectedPunishment = punishment.name();
+                    });
+                    punishmentDropdown.addUIElement(el);
+                });
+                punishmentDropdown.selectFirst((element) => selectedPunishment = element.getAttribute("value"));
+                action.addUIElement(punishmentDropdown);
+                d.addField(action);
+
+                let infractions = new DialogField();
+                infractions.setTitle("Infractions");
+                infractions.setSubtitle("How much infractions needs a member to be punished");
+                let minInfractions = new UIMinMaxSelector();
+                minInfractions.setValue(1);
+                infractions.addUIElement(minInfractions);
+                d.addField(infractions);
+
+                let timeframe = new DialogField();
+                timeframe.setTitle("Timeframe");
+                timeframe.setSubtitle("Timeframe of infractions");
+                let timeframeInput = new UIInput();
+                timeframeInput.setPlaceholder("Format: 1d2h or 2w1d2h");
+                timeframe.addUIElement(timeframeInput);
+                d.addField(timeframe);
+
+                let btnSave = new UIButton("Save & Close");
+                btnSave.setStyle("background-color: var(--green);");
+                btnSave.onInteract(async () => {
+                    let duration = timeInput == null ? null : timeInput.getValue();
+
+                    let action = await AutoAction.addAutoAction(selectedPunishment, duration, parseInt(minInfractions.getValue()), timeframeInput.getValue());
+
+                    let con = document.getElementById("auto-actions-list");
+                    con.appendChild(createAutoActionItem(action));
+
+                    d.close();
+                });
+
+                let btnField = new DialogEmptyField();
+                btnField.addUIElement(btnSave);
+                d.addField(btnField);
+            }
+		</script>
+	</head>
+	<body>
+        <div class="module-header">
+            <div class="module-text">
+                <h1>Moderation</h1>
+                <a>Keeps your server clean, nice and smooth</a>
+            </div>
+            <a class="disable-module" onclick="disableModule('MODERATION')">Disable</a>
+        </div>
+        <div class="element-container" id="support-queue">
+            <h1>Support channel</h1>
+            <a>Set a support channel to notify your moderators when somebody needs support</a>
+        </div>
+        <div class="element-container" id="reports">
+            <h1>Reports</h1>
+            <a>By selecting a report you can see more information about it.</a>
+        </div>
+        <div class="element-container" id="chatreports">
+            <h1>ChatReports<a id="enable-chatreports"></a></h1>
+            <a>When enabling chatreports you need to download the decryption key because we need to encrypt the saved messages.<br>By selecting a chatreport you can see more information about it.</a>
+        </div>
+        <div class="element-container" id="logging-channel">
+            <h1>Automod logging channel</h1>
+            <a>Select a logging channel to notify your moderators if any automod action is triggered</a>
+        </div>
+        <div class="element-container" id="mod-roles">
+            <h1>Moderator roles</h1>
+            <a>Select roles that are immune against automod actions</a>
+        </div>
+        <div class="element-container">
+            <h1>Automod</h1>
+            <a>All of the features you need to keep your server safe and clean</a>
+            <div id="automod-container">
+                <div class="automod-item" onclick="automod('BAD_WORDS')">
+                    <h1>Bad words</h1>
+                    <a>Keep your textchannels clean</a>
+                </div>
+                <div class="automod-item" onclick="automod('REPEATED_TEXT')">
+                    <h1>Repeated text</h1>
+                    <a>Block repeating text in your textchannels</a>
+                </div>
+                <div class="automod-item" onclick="automod('SERVER_INVITES')">
+                    <h1>Server invites</h1>
+                    <a>Prevent users from sending Discord invites</a>
+                </div>
+                <div class="automod-item" onclick="automod('EXTERNAL_LINKS')">
+                    <h1>Links</h1>
+                    <a>Block users from sending external links</a>
+                </div>
+                <div class="automod-item" onclick="automod('EXCESSIVE_CAPS')">
+                    <h1>Caps</h1>
+                    <a>Block excessive caps</a>
+                </div>
+                <div class="automod-item" onclick="automod('EXCESSIVE_EMOJIS')">
+                    <h1>Emojis</h1>
+                    <a>Block excessive emoji spam</a>
+                </div>
+                <div class="automod-item" onclick="automod('EXCESSIVE_SPOILERS')">
+                    <h1>Spoilers</h1>
+                    <a>Block excessive spoiler spam</a>
+                </div>
+                <div class="automod-item" onclick="automod('EXCESSIVE_MENTIONS')">
+                    <h1>Mentions</h1>
+                    <a>Block excessive mention spam</a>
+                </div>
+                <div class="automod-item" onclick="automod('ZALGO')">
+                    <h1>Zalgo</h1>
+                    <a>Detect zalgo text</a>
+                </div>
+            </div>
+        </div>
+        <div class="element-container">
+            <h1>Auto actions</h1>
+            <a>Combined with the Auto Moderator you can specify what the bot will do when someone reaches a certain amount of infractions in a timeframe</a>
+            <div id="auto-actions">
+                <a id="add-auto-action" onclick="addAutoAction()">+</a>
+                <div id="auto-actions-list"></div>
+            </div>
+        </div>
+	</body>
+</html>

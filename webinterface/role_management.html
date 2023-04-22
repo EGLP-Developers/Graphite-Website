@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/role_management.css">
+		
+		<script>
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('ROLE_MANAGEMENT')) return;
+				if(!checkModuleEnabled('ROLE_MANAGEMENT')) return;
+
+				var roleLists = {
+					'accessroles': await Role.getAccessroles(),
+					'autoroles': await Role.getAutoroles(),
+					'botroles': await Role.getBotroles()
+				};
+
+				Object.entries(roleLists).forEach(e => {
+					let rL = document.getElementById(e[0]);
+
+					let selector = new UIListSelector();
+					selector.addRoles((role, element) => {
+						if(e[0] == "accessroles"){
+							Role.addAccessrole(role.getID());
+						}else if(e[0] == "autoroles"){
+							Role.addAutorole(role.getID());
+						}else if(e[0] == "botroles"){
+							Role.addBotrole(role.getID());
+						}
+
+						selector.addListElement(new UIListSelectorElement()
+							.addText(role.getName())
+							.setAttribute("value", role.getID())
+							.onRemove(() => removeRole(e[0], role.getID()))
+							.setStyle("border: 1px solid " + getHexColor(role.getColorRaw())));
+					}, true);
+					rL.appendChild(selector.build());
+
+					e[1].forEach(t => {
+						selector.addListElement(new UIListSelectorElement()
+							.addText(t.getName())
+							.setAttribute("value", t.getID())
+							.onRemove(() => removeRole(e[0], t.getID()))
+							.setStyle("border: 1px solid " + getHexColor(t.getColorRaw())));
+					});
+				})
+			});
+
+			function removeRole(i, val){
+				if(i == "accessroles"){
+					Role.removeAccessrole(val);
+				}else if(i == "autoroles"){
+					Role.removeAutorole(val);
+				}else if(i == "botroles"){
+					Role.removeBotrole(val);
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Role Management</h1>
+				<a>Automate your role management</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('ROLE_MANAGEMENT')">Disable</a>
+		</div>
+		<div class="role-list" id="accessroles">
+			<div class="role-list-head">
+				<h1>Accessroles</h1>
+				<a>User can get these roles via the <code>getrole &lt;@Role&gt;</code> command</a>
+			</div>
+			<!--JS-->
+		</div>
+		<div class="role-list" id="autoroles">
+			<div class="role-list-head">
+				<h1>Autoroles</h1>
+				<a>Users get these roles automatically when joining your discord server</a>
+			</div>
+			<!--JS-->
+		</div>
+		<div class="role-list" id="botroles">
+			<div class="role-list-head">
+				<h1>Botroles</h1>
+				<a>Bots get these roles automatically when joining your discord server</a>
+			</div>
+			<!--JS-->
+		</div>
+	</body>
+</html>

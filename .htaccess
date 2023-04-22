@@ -1,0 +1,20 @@
+RewriteEngine On
+
+DirectorySlash Off
+DirectoryIndex home.html
+ErrorDocument 404 /404.html
+ErrorDocument 403 /404.html
+FallbackResource /404.html
+
+RewriteRule ^discord/?$ /redirect/discord [R=301,NC]
+RewriteRule ^documentation/?$ /redirect/documentation [R=301,NC]
+RewriteRule ^invite/?$ /redirect/invite [R=301,NC]
+RewriteRule ^patreon/?$ /redirect/patreon [R=301,NC]
+RewriteRule ^twitter/?$ /redirect/twitter [R=301,NC]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^([^.]+)$ $1.php [NC]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^([^.]+)$ $1.html [NC]

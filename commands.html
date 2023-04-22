@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Graphite | Commands</title>
+		
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+		<meta name="keywords" content="graphite,bot,discord,discordbot,rpg,minigames,moderation,fun,automoderation,discord bot,discord music bot,music bot,multipurpose bot,discord bot command">
+		<meta name="description" content="Set up Twitch, moderation, fun, role-management and music features.">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+		<link rel="icon" href="/img/graphite-raw.svg">
+		<link rel="stylesheet" href="css/defaults.css">
+		<link rel="stylesheet" href="css/commands.css">
+		
+		<script src="/website-data/jquery-3.6.0.min.js"></script>
+		
+		<script>
+			$(() => {
+				let fCtn = document.getElementById("filter");
+				let cList = document.getElementById("command-list");
+
+				fetch('/api/commands')
+					.then(response => response.json())
+					.then(json => {
+						let categories = Object.keys(json);
+
+						categories.sort(function(a, b) {
+							var nameA = a.toLowerCase();
+							var nameB = b.toLowerCase();
+							if (nameA < nameB) return -1;
+							if (nameA > nameB) return 1;
+							return 0;
+						});
+
+						categories.forEach(category => {
+							let c = document.createElement("a");
+							c.text = category;
+							c.addEventListener('click', () => filter(c, category));
+							fCtn.appendChild(c);
+						});
+
+						let commands = Object.entries(json);
+
+						commands.sort(function(a, b) {
+							var nameA = a[0].toLowerCase();
+							var nameB = b[0].toLowerCase();
+							if (nameA < nameB) return -1;
+							if (nameA > nameB) return 1;
+							return 0;
+						});
+
+						commands.forEach(entry => {
+							let group = document.createElement("div");
+							group.id = entry[0];
+							group.classList.add("command-group");
+
+							let cat = document.createElement("h1");
+							cat.innerText = entry[0];
+							group.appendChild(cat);
+
+							for(let cmd of entry[1]){
+								let cmdBox = document.createElement("div");
+								cmdBox.classList.add("command-box");
+								group.appendChild(cmdBox);
+
+								let cmdLine = document.createElement("div");
+								cmdLine.classList.add("command-line");
+								cmdBox.appendChild(cmdLine);
+
+								cmdBox.addEventListener('click', () => {
+									if($(cmdBox).hasClass("focused")){
+										$(cmdBox).removeClass("focused");
+										cmdLine.style.borderRadius = "3px";
+										return;
+									}
+									$(".command-box").removeClass("focused");
+									$(cmdBox).addClass("focused");
+									cmdLine.style.borderRadius = "3px 3px 0 0";
+								});
+
+								let cmdName = document.createElement("a");
+								cmdName.classList.add("command-name");
+								cmdName.text = cmd.command;
+								cmdLine.appendChild(cmdName);
+								
+								if(cmd.description != null){
+									let cmdDesc = document.createElement("a");
+									cmdDesc.classList.add("command-description");
+									cmdDesc.text = cmd.description;
+									cmdLine.appendChild(cmdDesc);
+								}
+
+								let cmdUseFor = document.createElement("div");
+								cmdUseFor.classList.add("command-use-for");
+								if(cmd.server_only) cmdUseFor.style.backgroundColor = "var(--green)";
+								if(cmd.private_only) cmdUseFor.style.backgroundColor = "var(--blue)";
+								if(!cmd.server_only && !cmd.private_only) cmdUseFor.style.backgroundColor = "#ecff33";
+								cmdLine.appendChild(cmdUseFor);
+
+								let cmdInfo = document.createElement("div");
+								cmdInfo.classList.add("command-information");
+								cmdBox.appendChild(cmdInfo);
+
+								if(cmd.usage != null){
+									let a = document.createElement("a");
+									a.text = "Usage: ";
+									cmdInfo.appendChild(a);
+									
+									let code = document.createElement("code");
+									code.innerText = "g-" + cmd.usage;
+									a.appendChild(code);
+								}
+
+								if(cmd.permission != null){
+									let a = document.createElement("a");
+									a.text = "Permission: ";
+									cmdInfo.appendChild(a);
+									
+									let code = document.createElement("code");
+									code.innerText = cmd.permission;
+									a.appendChild(code);
+								}
+
+								if(cmd.aliases != null){
+									let a = document.createElement("a");
+									a.text = "Aliases: ";
+									cmdInfo.appendChild(a);
+									
+									let code = document.createElement("code");
+									code.innerText = cmd.aliases;
+									a.appendChild(code);
+								}
+							}
+
+							cList.appendChild(group)
+						});
+					});
+			});
+
+			function filter(e, value){
+				if($(e).hasClass("focused")){
+					$("#filter > a").removeClass("focused");
+					$(".command-group").each(function() {
+						$(this).show();
+					});
+					return;
+				}
+				$("#filter > a").removeClass("focused");
+				$(e).addClass("focused");
+				$(".command-group").each(function() {
+					if(this.id == value){
+						$(this).show();
+					}else {
+						$(this).hide();
+					}
+				});
+			}
+
+			function search(e){
+				let commands = document.getElementsByClassName("command-name");
+				for(let command of commands){
+					let box = command.parentElement.parentElement;
+					box.style.display = (command.text.toLowerCase().includes(e.value.toLowerCase()) ? "flex" : "none");
+					let check = Array.from(box.parentElement.children).find(c => c.style.display == "flex");
+					box.parentElement.style.display = (check == null ? "none" : "flex");
+				}
+			}
+
+			function scrollYee(){
+				$("body, html").animate({ scrollTop: 0 }, "slow");
+			}
+		</script>
+	</head>
+	<body>
+		<header id="header">
+			<!--#include virtual="/header.html" -->
+		</header>
+		<main id="commands">
+			<div id="commands-center">
+				<div id="commands-left">
+					<a>Filter</a>
+					<div id="filter"><!--JS--></div>
+					<a>Legend</a>
+					<div id="legend">
+						<a class="command-tag">Server only<div class="command-use-for" style="background-color: var(--green);"></div></a>
+						<a class="command-tag">Private only<div class="command-use-for" style="background-color: var(--blue);"></div></a>
+						<a class="command-tag">Server & Private<div class="command-use-for" style="background-color: #ecff33;"></div></a>
+					</div>
+					<a id="scroll-top" onclick="scrollYee()">Jump to top</a>
+				</div>
+				<div id="command-list">
+					<input placeholder="Search..." oninput="search(this)"></input>
+					<!--JS-->
+				</div>
+			</div>
+		</main>
+		<footer id="footer">
+			<!--#include virtual="/footer.html" -->
+		</footer>
+	</body>
+</html>

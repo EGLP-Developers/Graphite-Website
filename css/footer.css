@@ -1,0 +1,22 @@
+#footer-navigation{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+#footer-center{
+	display: flex;
+	gap: 10px;
+	padding: 0 0 10px 0;
+	width: 70%;
+	color: #fff;
+	font-size: 14px;
+}
+
+#footer-center > a:link,
+#footer-center > a:active,
+#footer-center > a:visited{
+	color: #fff;
+	opacity: .7;
+	text-decoration: none;
+}

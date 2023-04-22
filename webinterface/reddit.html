@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/reddit.css">
+		
+		<script>
+
+			var subreddits = [];
+			var globalSubreddits = {};
+			var selectedChannel;
+			var subredditsCon = document.getElementById("subreddits");
+			var defaultEmbedColor = "#ff4500";
+
+			var inpIdx = 2;
+			var colorIdx = 8;
+			var colorLblIdx = 9;
+			var space = "20px";
+				
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('REDDIT')) return;
+				if(!checkModuleEnabled('REDDIT')) return;
+
+				subreddits = await Subreddit.getSubreddits();
+				for(let subreddit of subreddits){
+					globalSubreddits[subreddit.getSubreddit()] = subreddit;
+					subredditsCon.appendChild(subredditItem(subreddit));
+				}
+			});
+
+			function subredditItem(subreddit){
+				let item = document.createElement("div");
+				item.classList.add("subreddit-item");
+				item.id = subreddit.getSubreddit();
+				item.addEventListener('click', () => applySubreddit(subreddit.getSubreddit()));
+
+				let sr = document.createElement("a");
+				sr.text = "/r/" + subreddit.getSubreddit();
+				item.appendChild(sr);
+
+				let ch = document.createElement("a");
+				let tc = textchannels.find(t => t.getID() == subreddit.getNotificationChannel());
+				ch.text = "#" + tc.getName();
+				item.appendChild(ch);
+
+				let actions = document.createElement("div");
+				actions.classList.add("subreddit-actions");
+				item.appendChild(actions);
+
+				let delImg = document.createElement("img");
+				delImg.addEventListener('click', () => {
+					event.stopPropagation();
+						
+					let dialog = new Dialog();
+
+					dialog.addHeader(new DialogHeader()
+						.setTitle("Remove subreddit")
+						.setSubtitle("This action is irreversible! Are you sure?"));
+
+					let btnYes = new UIButton("Yes");
+					btnYes.setStyle("background-color: var(--red);");
+					btnYes.onInteract(() => {
+						Subreddit.removeSubreddit(subreddit.getSubreddit());
+						delete globalSubreddits[subreddit.getSubreddit()];
+						item.remove();
+						dialog.close();
+						showAlert("Successfully removed subreddit");
+					});
+
+					let btnNo = new UIButton("No");
+					btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+					btnNo.onInteract(() => dialog.close());
+
+					dialog.addField(new DialogEmptyField()
+						.addUIElement(btnYes)
+						.addUIElement(btnNo)
+						.setStyle("flex-direction: row;"));
+				});
+				delImg.setAttribute("alt", "Remove");
+				delImg.setAttribute("src", "../img/trash.svg");
+				actions.appendChild(delImg);
+
+				return item;
+			}
+
+			function applySubreddit(subreddit){
+				let dynamicSite = new DynamicSite();
+
+				let channelDropdown = new UIDropdown()
+					.addTextChannels((textchannel, element) => selectedChannel = textchannel.getID())
+					.addNewsChannels((newschannel, element) => selectedChannel = newschannel.getID())
+					.selectFirst((element) => selectedChannel = element.getAttribute("value"));
+
+				dynamicSite.addHeader(new DynamicSiteHeader()
+					.setTitle("Add subreddit")
+					.onSave(async () => {
+						let subreddit = document.getElementById("subreddit-input");
+						let embedColor = document.getElementById("ui-color-picker-input");
+
+						if(checkCondition(subreddit.value.trim().length == 0, "Please enter a subreddit")) return;
+						if(checkCondition(!/^[a-zA-Z0-9][\w]{3,24}$/.test(subreddit.value), "Invalid subreddit name")) return;
+						if(checkCondition(selectedChannel == null, "Please select a notification channel")) return;
+						if(checkCondition(!isValidHexColor(embedColor.value), "Invalid color")) return;
+
+						let dataID = subreddit.getAttribute("data-id");
+
+						let user = (dataID == null ? await Subreddit.addSubreddit(subreddit.value, selectedChannel) : globalSubreddits[dataID]);
+						if(user == null) return;
+						if(dataID == null) user = (globalSubreddits[user.getSubreddit()] = user);
+
+						user.setNotificationChannel(selectedChannel);
+						user.setColor(hexToDecimal(embedColor.value));
+
+						Subreddit.updateSubreddit(user);
+
+						if(dataID != null){
+							let el = document.getElementById(dataID);
+							subredditsCon.replaceChild(subredditItem(user), el);
+						}else{
+							subredditsCon.appendChild(subredditItem(user));
+						}
+
+						dynamicSite.close();
+						showAlert(dataID == null ? "Successfully added subreddit" : "Successfully edit subreddit");
+					}));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Subreddit")
+					.setSubtitle("About which subreddit we should notify you")
+					.addUIElement(new UIInput()
+						.setID("subreddit-input")
+						.setPlaceholder("Subreddit")));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Notification channel")
+					.addUIElement(channelDropdown));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Embed color")
+					.addUIElement(new UIColorPicker()
+						.setValue(defaultEmbedColor)));
+
+				if(subreddit){
+					let subredditInput = document.getElementById("subreddit-input");
+					let embedColor = document.getElementById("ui-color-picker-input");
+					let embedColorLabel = document.getElementById("ui-color-picker-label");
+
+					let subr = globalSubreddits[subreddit];
+
+					subredditInput.value = subr.getSubreddit();
+					subredditInput.setAttribute("data-id", subr.getSubreddit());
+					subredditInput.setAttribute("disabled", true);
+
+					channelDropdown.findElementByAttribute("value", subr.getNotificationChannel());
+					selectedChannel = subr.getNotificationChannel();
+
+					embedColor.value = getHexColor(subr.getColor());
+					embedColorLabel.style.borderLeft = "5px solid " + embedColor.value;
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Reddit</h1>
+				<a>Get notified of your favorite subreddit</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('REDDIT')">Disable</a>
+		</div>
+		<div id="add-subreddit">
+			<a>By adding more subreddits Graphite will send a message in a pre-defined channel of your choice</a>
+			<button onclick="applySubreddit()">Add subreddit</button>
+		</div>
+		<div id="added-subreddits">
+			<a>Subreddits</a>
+			<div id="subreddits"></div>
+		</div>
+	</body>
+</html>

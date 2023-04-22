@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/commands.css">
+		
+		<script>
+
+			var currentAction = {};
+			var currentCommand;
+			var customCommands = [];
+			var addedFields = [];
+			var dialog;
+			var edit = false;
+
+			var con = document.getElementById("customcommands");
+	
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('CUSTOM_COMMANDS')) return;
+
+				customCommands = await CustomCommand.getCustomCommands();
+
+				customCommands.sort(function(a, b) {
+					var nameA = a.getName().toLowerCase();
+					var nameB = b.getName().toLowerCase();
+					if (nameA < nameB) return -1;
+					if (nameA > nameB) return 1;
+					return 0;
+				});
+
+				let ccCenter = document.getElementById("customcommand-center");
+
+				currentCommand = new CustomCommand();
+				currentCommand.setActions([]);
+
+				for(let cc of customCommands) con.appendChild(customCommand(cc));
+			});
+
+			function customCommand(cc){
+				let item = document.createElement("div");
+				item.classList.add("cc-item");
+				item.addEventListener('click', () => editCustomCommand(cc.getName()));
+				item.id = "cc-" + cc.getName();
+
+				let text = document.createElement("div");
+				text.classList.add("cc-text");
+				item.appendChild(text);
+
+				let nme = document.createElement("a");
+				nme.classList.add("cc-name");
+				nme.text = cc.getName().toLowerCase();
+				text.appendChild(nme);
+
+				let permission = document.createElement("a");
+				permission.classList.add("cc-permission");
+				permission.text = "Permission: " + (cc.getPermission() == null ? "none" : cc.getPermission());
+				text.appendChild(permission);
+
+				let ac = document.createElement("div");
+				ac.classList.add("cc-actions");
+				item.appendChild(ac);
+
+				let del = document.createElement("img");
+				del.addEventListener('click', (event) => {
+					event.stopPropagation();
+
+					let dialog = new Dialog();
+
+					dialog.addHeader(new DialogHeader()
+						.setTitle("Delete customcommand")
+						.setSubtitle("This action is irreversible! Are you sure?"));
+
+					let btnYes = new UIButton("Yes");
+					btnYes.setStyle("background-color: var(--red);");
+					btnYes.onInteract(() => {
+						CustomCommand.deleteCustomCommand(cc.getName());
+						let el = document.getElementById("cc-" + cc.getName());
+						el.remove();
+						dialog.close();
+					});
+
+					let btnNo = new UIButton("No");
+					btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+					btnNo.onInteract(() => dialog.close());
+
+					dialog.addField(new DialogEmptyField()
+						.addUIElement(btnYes)
+						.addUIElement(btnNo)
+						.setStyle("flex-direction: row;"));
+				});
+				del.setAttribute("src", "../img/trash.svg");
+				ac.appendChild(del);
+
+				return item;
+			}
+
+			function getActionProperty(action, property) {
+				for(let prop of action.getType().getProperties()) {
+					if(prop.name == property) return prop;
+				}
+				return null;
+			}
+
+			function addAction(refAction) {
+				currentAction = refAction != null ? refAction : {};
+				if(refAction == null) currentAction.properties = {};
+
+				dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle((edit ? "Edit": "Add") + " action"));
+
+				let f1 = new DialogField();
+				f1.setTitle("Command action");
+				dialog.addField(f1);
+
+				let dd = new UIDropdown();
+
+				CommandActionType.values().forEach(val => {
+					let e = new UIDropdownElement();
+					e.addText(val.getDescription());
+					e.setAttribute("value", val.name());
+					e.onInteract(() => {
+						currentAction = {};
+						currentAction.properties = {};
+						changeActionType(val);
+					});
+					dd.addUIElement(e);
+				});
+				if(refAction == null) dd.selectFirst();
+				if(refAction != null) dd.findElementByAttribute("value", refAction.type.name());
+				f1.addElement(dd.build());
+				
+				changeActionType(refAction != null ? refAction.type : CommandActionType.values()[0]);
+
+				let save = new UIButton("Save & Close");
+				save.setStyle("background-color: var(--green)");
+				save.onInteract(() => {
+					let canBeSaved = false;
+					if(refAction == null) {
+						canBeSaved = saveAction();
+					}else {
+						canBeSaved = saveAction(refAction.index);
+					}
+					if(canBeSaved) dialog.close();
+				});
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(save));
+			}
+
+			function editAction(index) {
+				let fAction = currentCommand.getActions()[index];
+				let ac = {
+					type: fAction.type,
+					index: index,
+					properties: {},
+				};
+				for(let pRef of fAction.getPropertyRefs()) {
+					let forProperty = pRef.getForProperty();
+					let isArgument = pRef.getIsArgument();
+
+					let property = {};
+					property.isArg = isArgument;
+					if(isArgument) {
+						property.value = pRef.argumentName;
+					}else {
+						property.value = pRef.value;
+					}
+
+					ac.properties[forProperty] = property;
+				}
+				addAction(ac);
+			}
+
+			function changeActionType(actionType) {
+				let fields = dialog.dialogInner.getElementsByClassName("dialog-field");
+				dialog.removeFields(1, fields.length - 2);
+
+				currentAction.type = actionType;
+				let i = 2;
+				for(let prop of actionType.getProperties()) {
+					if(currentAction.properties[prop.name] == null) currentAction.properties[prop.name] = {};
+					let p = currentAction.properties[prop.name];
+					// TODO: p.value is 0, sollte net so sein
+					let field = genItem(prop, p.isArg, p == null ? null : {isArg: p.isArg, value: p.value});
+					dialog.addFieldAtIndex(field, i);
+					i++;
+				}
+			}
+
+			function genItem(prop, isArgument, initialValue = {}) {
+				let field = new DialogField();
+				field.setTitle(prop.friendlyName);
+
+				currentAction.properties[prop.name].isArg = isArgument;
+
+				let ch = new UICheckboxWithText();
+				ch.setText("Is argument?");
+				ch.getCheckboxInput().checked = isArgument;
+				ch.onInteract(() => {
+					let arg = genItem(prop, ch.getCheckboxInput().checked);
+					field.replaceField(arg);
+				});
+				field.addUIElement(ch);
+
+				if(!isArgument) {
+					switch(prop.type.enum_value.toLowerCase()) {
+						case "string":
+						{
+							let input = new UIInput();
+							input.setPlaceholder("String");
+							if(initialValue.value != null) input.setValue(initialValue.value);
+							input.setRegexInputFilter(/^.{0,256}$/);
+							input.onChange(() => currentAction.properties[prop.name].value = input.getValue());
+							field.addUIElement(input);
+							break;
+						}
+						case "integer":
+						{
+							let input = new UIInput();
+							input.setPlaceholder("Number");
+							if(initialValue.value != null) input.setValue(initialValue.value);
+							input.setRegexInputFilter(/^\d*$/);
+							input.onChange(() => currentAction.properties[prop.name].value = parseInt(input.getValue()));
+							field.addUIElement(input);
+							break;
+						}
+						case "boolean":
+						{
+							let cBox = new UICheckboxWithText();
+							cBox.setText(prop.friendlyName);
+							currentAction.properties[prop.name].value = "false";
+							if(initialValue.value != null) cBox.getCheckboxInput().checked = (initialValue.value == true);
+							cBox.onInteract(() => currentAction.properties[prop.name].value = cBox.getCheckboxInput().checked);
+							field.addUIElement(cBox);
+							break;
+						}
+						case "user":
+						{
+							let members = new UIDropdown();
+							members.addUIElement(new UIDropdownElement()
+								.addText("User who sent the command")
+								.setAttribute("value", "sender")
+								.onInteract(() => currentAction.properties[prop.name].value = "sender"));
+							members.addMembers((member, element) => currentAction.properties[prop.name].value = member.getID());
+							members.selectFirst((el) => currentAction.properties[prop.name].value = el.getAttribute("value"));
+							if(initialValue.value != null) members.findElementByAttribute("value", initialValue.value);
+							field.addUIElement(members);
+							break;
+						}
+						case "text_channel":
+						{
+							let sChannel = new UIDropdown();
+							sChannel.addUIElement(new UIDropdownElement()
+								.addText("Channel the command was sent from")
+								.setAttribute("value", "sent-from")
+								.onInteract(() => currentAction.properties[prop.name].value = "sent-from"));
+							sChannel.addTextChannels((textchannel, element) => currentAction.properties[prop.name].value = textchannel.getID());
+							sChannel.selectFirst((el) => currentAction.properties[prop.name].value = el.getAttribute("value"));
+							if(initialValue.value != null) sChannel.findElementByAttribute("value", initialValue.value);
+							field.addUIElement(sChannel);
+							break;
+						}
+						case "voice_channel":
+						{
+							let sChannel = new UIDropdown();
+							sChannel.addVoiceChannels((voicechannel, element) => currentAction.properties[prop.name].value = voicechannel.getID());
+							sChannel.selectFirst((el) => currentAction.properties[prop.name].value = el.getAttribute("value"));
+							if(initialValue.value != null) sChannel.findElementByAttribute("value", initialValue.value);
+							field.addUIElement(sChannel);
+							break;
+						}
+						case "color":
+						{
+							let picker = new UIColorPicker();
+							picker.onInteract((val) => {
+								currentAction.properties[prop.name].value = val;
+							});
+							field.addUIElement(picker);
+							break;
+						}
+						case "role":
+						{
+							let roles = new UIDropdown();
+							roles.addRoles((role, element) => currentAction.properties[prop.name].value = role.getID());
+							roles.selectFirst((el) => currentAction.properties[prop.name].value = el.getAttribute("value"));
+							if(initialValue.value != null) roles.findElementByAttribute("value", initialValue.value);
+							field.addUIElement(roles);
+							break;
+						}
+						default:
+						{
+							ctn.innerHTML = "-";
+							break;
+						}
+					}
+				}else {
+					let input = new UIInput();
+					input.setPlaceholder("Argument name");
+					input.setRegexInputFilter(/^.{0,256}$/);
+					if(initialValue.value != null) input.setValue(initialValue.value);
+					input.onChange(() => currentAction.properties[prop.name].argumentName = input.getValue());
+					field.addUIElement(input);
+				}
+				return field;
+			}
+
+			function saveAction(index) {
+				let fAction = new CommandAction();
+				fAction.type = currentAction.type;
+				fAction.propertyRefs = [];
+
+				let acID = Math.random().toString(36).substr(2, 9);
+				for(let prop of currentAction.type.getProperties()) {
+					let fProp = currentAction.properties[prop.name];
+					if(fProp == null || (!fProp.isArg && fProp.value == null)) {
+						showAlert("Invalid value for: " + prop.getFriendlyName(), true);
+						return false;
+					}
+					if(fProp.isArg && fProp.argumentName == null){
+						showAlert("Missing argument value for " + prop.getFriendlyName(), true);
+						return false;
+					}
+					if(fProp.isArg && !/^[a-z0-9]{3,32}$/.test(fProp.argumentName)){
+						showAlert("The argument name needs to be alphanumeric, lowercase and between 3 and 32 characters", true);
+						return false;
+					}
+					let ref = new CommandActionPropertyRef();
+					ref.setIsArgument(fProp.isArg);
+					if(fProp.isArg) {
+						ref.setForProperty(prop.name);
+						ref.setArgumentName(fProp.argumentName);
+					}else {
+						ref.setForProperty(prop.name);
+						ref.setValue(fProp.value);
+					}
+					fAction.propertyRefs.push(ref);
+				}
+
+				if(index == null) {
+					currentCommand.getActions().push(fAction);
+					index = currentCommand.getActions().length - 1;
+				}else {
+					currentCommand.getActions()[index] = fAction;
+				}
+
+				addSavedAction(index);
+				return true;
+			}
+
+			function addSavedAction(index) {
+				let elAfter = actions.querySelector("#sv-action-" + (index + 1));
+				let aItemD = genActionElement(index);
+
+				if(elAfter != null) {
+					actions.insertBefore(aItemD, elAfter);
+				}else {
+					actions.appendChild(aItemD);
+				}
+			}
+
+			function genActionElement(index) {
+				let fAction = currentCommand.getActions()[index];
+				let aItemD = document.getElementById("sv-action-" + index);
+				if(aItemD == null) {
+					let item = document.createElement("div");
+					item.classList.add("action-item");
+					item.setAttribute("id", "sv-action-" + index);
+
+					aItemD = item;
+				}
+				aItemD.innerHTML = "";
+
+				let header = document.createElement("div");
+				header.classList.add("action-item-header");
+
+				let title = document.createElement("a");
+				title.text = fAction.getType().getDescription();
+				header.appendChild(title);
+
+				let ac = document.createElement("div");
+
+				//MOVE ACTION DOWN
+				let moveDownImg = document.createElement("img");
+				moveDownImg.addEventListener('click', () => moveActionDown(index));
+				moveDownImg.setAttribute("alt", "Down");
+				moveDownImg.setAttribute("src", "../img/CustomCommands/down.svg");
+				ac.appendChild(moveDownImg);
+
+				//MOVE ACTION UP
+				let moveUpImg = document.createElement("img");
+				moveUpImg.addEventListener('click', () => moveActionUp(index));
+				moveUpImg.setAttribute("alt", "Up");
+				moveUpImg.setAttribute("src", "../img/CustomCommands/up.svg");
+				ac.appendChild(moveUpImg);
+
+				//EDIT ACTION
+				let editImg = document.createElement("img");
+				editImg.addEventListener('click', () => editAction(index));
+				editImg.setAttribute("alt", "Edit");
+				editImg.setAttribute("src", "../img/CustomCommands/edit.svg");
+				ac.appendChild(editImg);
+
+				//DELETE ACTION
+				let delImg = document.createElement("img");
+				delImg.addEventListener('click', () => deleteAction(index));
+				delImg.setAttribute("alt", "Delete");
+				delImg.setAttribute("src", "../img/CustomCommands/delete.svg");
+				ac.appendChild(delImg);
+
+				header.appendChild(ac);
+				aItemD.appendChild(header);
+
+				for(let fProp of fAction.getPropertyRefs()) {
+					let a = document.createElement("a");
+					a.classList.add("action-item-property");
+
+					if(fProp.getIsArgument()) {
+						a.text = getActionProperty(fAction, fProp.getForProperty()).friendlyName + " argument: " + fProp.getArgumentName();
+					}else {
+						a.text = getActionProperty(fAction, fProp.getForProperty()).friendlyName + ": " + fProp.getValue();
+					}
+
+					aItemD.appendChild(a);
+				}
+				return aItemD;
+			}
+
+			async function saveCustomCommand() {
+				let nameInput = document.getElementById("name");
+				let permissionInput = document.getElementById("permission");
+
+				let perm = permission.value.length == 0 ? null : permission.value;
+				currentCommand.setPermission(perm);
+
+				if(nameInput.value.trim().length == 0){
+					showAlert("Need a valid name", true);
+					return false;
+				}
+
+				if(nameInput.value.split(" ").length > 1){
+					showAlert("You need to use a one word command", true);
+					return false;
+				}
+
+				if(!/^[a-z0-9]{3,32}$/.test(nameInput.value)){
+					showAlert("The name needs to be alphanumeric, lowercase and between 3 and 32 characters", true);
+					return false;
+				}
+
+				currentCommand.setName(nameInput.value);
+
+				if(currentCommand.getActions().length == 0) {
+					showAlert("You need at least one action to save", true);
+					return false;
+				}
+
+				nameInput.value = "";
+				permission.value = "";
+
+				let ac = Array.from(actions.children).slice(1, actions.children.length);
+				ac.forEach(el => el.remove());
+				
+				await CustomCommand.updateCustomCommand(currentCommand);
+
+				let con = document.getElementById("customcommands");
+				let item = document.getElementById("cc-" + currentCommand.getName());
+				if(item != null){
+					con.replaceChild(customCommand(currentCommand), item);
+				}else{
+					con.appendChild(customCommand(currentCommand));
+				}
+
+				currentCommand = new CustomCommand();
+				currentCommand.setActions([]);
+				return true;
+			}
+
+			async function editCustomCommand(command){
+				edit = true;
+
+				customCommandDynamicSite();
+
+				let nameInput = document.getElementById("name");
+				let permissionInput = document.getElementById("permission");
+
+				let cmd = await CustomCommand.getCustomCommandByName(command);
+
+				let li = Array.from(actions).splice(1, actions.length);
+
+				while(li.firstChild) li.removeChild(li.firstChild);
+				nameInput.value = cmd.getName();
+				nameInput.setAttribute("disabled", true);
+				permission.value = cmd.getPermission() != null ? cmd.getPermission() : "";
+				currentCommand = cmd;
+				let idx = 0;
+				let ac = Array.from(actions.children).slice(1, actions.children.length);
+				ac.forEach(el => el.remove());
+				for(let action of cmd.getActions()){
+					addSavedAction(idx++);
+				}
+			}
+			
+			function removeElement(element) {
+				element && element.parentNode && element.parentNode.removeChild(element);
+			}
+
+			function moveActionUp(idx) {
+				if(idx == 0) return;
+				let a = currentCommand.getActions()[idx];
+				currentCommand.getActions()[idx] = currentCommand.getActions()[idx - 1];
+				currentCommand.getActions()[idx - 1] = a;
+				let idxEl = document.getElementById("sv-action-" + idx);
+				let idxEl1 = document.getElementById("sv-action-" + (idx-1));
+				idxEl.parentNode.insertBefore(idxEl, idxEl1);
+				idxEl.id = "sv-action-" + (idx-1);
+				idxEl1.id = "sv-action-" + (idx);
+				idxEl.replaceWith(genActionElement(idx - 1));
+				idxEl1.replaceWith(genActionElement(idx));
+			}
+
+			function moveActionDown(idx) {
+				if(idx == currentCommand.getActions().length - 1) return;
+				let a = currentCommand.getActions()[idx];
+				currentCommand.getActions()[idx] = currentCommand.getActions()[idx + 1];
+				currentCommand.getActions()[idx + 1] = a;
+				let idxEl = document.getElementById("sv-action-" + idx);
+				let idxEl1 = document.getElementById("sv-action-" + (idx+1));
+				idxEl.parentNode.insertBefore(idxEl1, idxEl);
+				idxEl.id = "sv-action-" + (idx+1);
+				idxEl1.id = "sv-action-" + (idx);
+				idxEl.replaceWith(genActionElement(idx + 1));
+				idxEl1.replaceWith(genActionElement(idx));
+			}
+
+			function deleteAction(idx){
+				currentCommand.getActions().splice(idx, 1);
+				removeElement(document.getElementById("sv-action-" + idx));
+				let nID = 0;
+				for(let i = 0; i <= currentCommand.getActions().length; i++) {
+					if(i == idx) i++;
+					let el = document.getElementById("sv-action-" + i);
+					if(el == null) continue;
+					el.id = "sv-action-" + nID;
+					el.replaceWith(genActionElement(nID));
+					nID++;
+				}
+			}
+
+			function deleteAllCommands(){
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Delete all customcommands")
+					.setSubtitle("This action is irreversible! Are you sure?"));
+
+				let btnYes = new UIButton("Yes");
+				btnYes.setStyle("background-color: var(--red);");
+				btnYes.onInteract(() => {
+					CustomCommand.deleteAllCustomCommands();
+					let ctn = document.getElementById("customcommands");
+					while(ctn.firstChild) ctn.removeChild(ctn.firstChild);
+					dialog.close();
+				});
+
+				let btnNo = new UIButton("No");
+				btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+				btnNo.onInteract(() => dialog.close());
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(btnYes)
+					.addUIElement(btnNo)
+					.setStyle("flex-direction: row;"));
+			}
+
+			async function createCustomCommands(y, commands){
+				let ctn = document.getElementById("customcommands");
+				for(let command of commands){
+					let resp = await CustomCommand.getCustomCommandByName(command);
+					if(resp != null) continue;
+
+					currentCommand = new CustomCommand();
+
+					currentCommand.setName(command);
+					currentCommand.setPermission(y + "." + command);
+					
+					let fAction = new CommandAction();
+					fAction.type = CommandActionType.COMMAND_REDIRECT;
+					fAction.propertyRefs = [];
+					currentCommand.setActions([fAction]);
+
+					let fixedRef = new CommandActionPropertyRef();
+					fixedRef.setIsArgument(false);
+					fixedRef.setForProperty("redirected_command");
+					fixedRef.setValue(y + " " + command);
+					fAction.propertyRefs.push(fixedRef);
+
+					await CustomCommand.updateCustomCommand(currentCommand);
+
+					let item = customCommand(currentCommand);
+					ctn.appendChild(item);
+				}
+			}
+
+			function removeAllActions(){
+				if(currentCommand == null || currentCommand.getActions().length == 0) return;
+				Array.from(actions.children).forEach(e => e.remove());
+				currentCommand.setActions([]);
+			}
+
+			function customCommandDynamicSite(){
+				let dynamicSite = new DynamicSite();
+
+				dynamicSite.addHeader(new DynamicSiteHeader()
+					.setTitle((edit ? "Edit" : "Create") + " CustomCommand")
+					.onSave(async () => {
+						let canBeSaved = await saveCustomCommand();
+						if(canBeSaved) {
+							dynamicSite.close();
+							edit = false;
+						}
+					})
+					.x(() => {
+						currentCommand = new CustomCommand();
+						currentCommand.setActions([]);
+						edit = false;
+					}));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Command name")
+					.addUIElement(new UIInput()
+						.setID("name")));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Command permission")
+					.addUIElement(new UIInput()
+						.setID("permission")));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Command actions")
+					.addUIElement(new UIButton("+")
+						.setStyle("background-color: var(--primary-color); padding: 10.5px 15px; font-weight: bold;")
+						.onInteract(() => addAction()))
+					.addUIElement(new UINote("Information", "You need at least one action to save a command")
+						.setStyle("margin-top: 10px;"))
+					.addUIElement(new UIButton("Remove all actions")
+						.setStyle("margin-top: 10px; background-color: var(--red);")
+						.onInteract(() => removeAllActions()))
+					.addUIElement(new UIEmptyElement()
+						.setID("actions")));
+			}
+		</script>
+	</head>
+	<body>
+		<div id="customcommand-center">
+			<h1 class="main-title">Custom Commands</h1>
+			<div class="customcommand-actions">
+				<a id="create-command" onclick="customCommandDynamicSite()">New</a>
+				<a id="delete-all-commands" onclick="deleteAllCommands()">Delete all</a>
+			</div>
+			<div id="customcommands"></div>
+		</div>
+	</body>
+</html>

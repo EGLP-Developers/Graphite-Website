@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/record.css">
+		
+		<script>
+			var recordings = [];
+			var globalRecordings = {};
+			var blockUpdate;
+			var events = [];
+
+			var usrL = document.getElementById("user-list");
+			var list = document.getElementById("recordings");
+			var audioControls = document.getElementById("audio-controls");
+			var isRecording;
+
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('RECORD')) return;
+				if(!checkModuleEnabled('RECORD')) return;
+
+				isRecording = await AudioRecording.isRecording();
+				recordings = await AudioRecording.getRecordings();
+
+				for(let recording of recordings){
+					globalRecordings[recording.getName()] = recording;
+					list.appendChild(getRecordingItem(recording));
+				}
+
+				Webinterface.registerCustomHandler("updateRecordings", async packet => {
+					recordings = await AudioRecording.getRecordings();
+					while(list.firstChild) list.removeChild(list.firstChild);
+					for(let recording of recordings){
+						globalRecordings[recording.getName()] = recording;
+						list.appendChild(getRecordingItem(recording));
+					}
+					if(isRecording) isRecording = false;
+				});
+
+				setInterval(async () => {
+					if(blockUpdate) return;
+					if(events == null) return;
+					blockUpdate = true;
+					let timestamp = Math.floor(audioControls.currentTime * 50);
+					let channelUsers = getUsersAt(timestamp);
+					let talkingUsers = getTalkingUsersAt(timestamp);
+
+					for(let user of channelUsers) {
+						if(document.getElementById("user-" + user) != null) continue;
+						let usr = await User.getUserByID(user);
+
+						let el = document.createElement("a");
+						el.id = "user-" + user;
+						el.setAttribute("data-user-id", user);
+						el.className = "member";
+						el.text = (usr == null ? user : usr.getFullName());
+						usrL.appendChild(el);
+
+						let userAvatar = document.createElement("img");
+						userAvatar.setAttribute("alt", "User icon");
+						userAvatar.src = (usr == null ? "/img/graphite-raw.svg" : usr.getAvatarURL());
+						userAvatar.className = "member-avatar";
+						el.appendChild(userAvatar);
+					}
+
+					for(let el of document.getElementsByClassName("member")) {
+						let userID = el.getAttribute("data-user-id");
+						if(!channelUsers.includes(userID)) el.remove();
+						el.classList.toggle("talking", talkingUsers.includes(userID));
+					}
+
+					blockUpdate = false;
+				}, 500);
+
+				/*Audio player*/
+				const audioPlayerContainer = document.getElementById("audio-player");
+				const playIcon = document.getElementById("play-icon");
+				const seekSlider = document.getElementById('seek-slider');
+				const volumeSlider = document.getElementById('volume-slider');
+				let playState = "play";
+
+				playIcon.addEventListener('click', () => {
+					if(playState === "play"){
+						audioControls.play();
+						playIcon.src = "/img/Music/pause.svg";
+						requestAnimationFrame(whilePlaying);
+						playState = "pause";
+					}else{
+						audioControls.pause();
+						playIcon.src = "/img/Music/play.svg";
+						cancelAnimationFrame(whilePlaying);
+						playState = "play";
+					}
+				});
+
+				const showRangeProgress = (rangeInput) => {
+					if(rangeInput === seekSlider) audioPlayerContainer.style.setProperty("--seek-before-width", rangeInput.value / rangeInput.max * 100 + "%");
+					else audioPlayerContainer.style.setProperty('--volume-before-width', rangeInput.value / rangeInput.max * 100 + '%');
+				}
+				
+				seekSlider.addEventListener('input', (e) => {
+					showRangeProgress(e.target);
+				});
+
+				volumeSlider.addEventListener('input', (e) => {
+					showRangeProgress(e.target);
+				});
+
+				const durationContainer = document.getElementById('duration');
+				const currentTimeContainer = document.getElementById('current-time');
+				const outputContainer = document.getElementById('volume-output');
+				let raf = null;
+
+				const calcTime = (secs) => {
+					const minutes = Math.floor(secs / 60);
+					const seconds = Math.floor(secs % 60);
+					const returnedSeconds = seconds < 10 ? `0${seconds}` : `${seconds}`;
+					return `${minutes}:${returnedSeconds}`;
+				}
+
+				const displayDuration = () => {
+					duration.textContent = calcTime(audioControls.duration);
+				}
+
+				const setSliderMax = () => {
+					seekSlider.max = Math.floor(audioControls.duration);
+				}
+
+				const displayBufferedAmount = () => {
+					if(audioControls.buffered.length == 0) return;
+					const bufferedAmount = Math.floor(audioControls.buffered.end(audioControls.buffered.length - 1));
+    				audioPlayerContainer.style.setProperty('--buffered-width', `${(bufferedAmount / seekSlider.max) * 100}%`);
+				}
+
+				const whilePlaying = () => {
+					seekSlider.value = Math.floor(audioControls.currentTime);
+					currentTimeContainer.textContent = calcTime(seekSlider.value);
+					audioPlayerContainer.style.setProperty('--seek-before-width', `${seekSlider.value / seekSlider.max * 100}%`);
+					raf = requestAnimationFrame(whilePlaying);
+				}
+
+				if (audioControls.readyState > 0) {
+					displayDuration();
+					setSliderMax();
+    				displayBufferedAmount();
+				} else {
+					audioControls.addEventListener('loadedmetadata', () => {
+						displayDuration();
+						setSliderMax();
+						displayBufferedAmount();
+					});
+				}
+
+				audioControls.addEventListener('progress', displayBufferedAmount);
+
+				seekSlider.addEventListener('input', () => {
+					currentTimeContainer.textContent = calcTime(seekSlider.value);
+					if(!audioControls.paused) {
+						cancelAnimationFrame(raf);
+					}
+				});
+
+				seekSlider.addEventListener('change', () => {
+					audioControls.currentTime = seekSlider.value;
+					if(!audioControls.paused) {
+						requestAnimationFrame(whilePlaying);
+					}
+				});
+
+				volumeSlider.addEventListener('input', (e) => {
+					const value = e.target.value;
+
+					outputContainer.textContent = value;
+					audioControls.volume = value / 100;
+				});
+
+			});
+
+			function getRecordingItem(recording){
+				let rec = globalRecordings[recording.getName()];
+
+				let item = document.createElement("div");
+				item.classList.add("recording");
+
+				let name = document.createElement("input");
+				name.value = rec.getName();
+				name.addEventListener('change', async () => {
+					event.stopPropagation();
+					if(name.value.trim().length == 0){
+						showAlert("Please enter a valid name", true);
+						return;
+					}
+					await AudioRecording.renameRecording(rec.getName(), name.value);
+					rec.name = name.value;
+					name.blur();
+				});
+				item.appendChild(name);
+
+				let actions = document.createElement("div");
+				actions.classList.add("actions");
+
+				let play = document.createElement("img");
+				play.src = "/img/Music/play.svg";
+				play.setAttribute("alt", "Play");
+				play.addEventListener('click', async () => {
+					event.stopPropagation();
+					while(usrL.firstChild) usrL.removeChild(usrL.firstChild);
+
+					$(".recording").removeClass("selected");
+					$(item).addClass("selected");
+
+					let b64 = await AudioRecording.getRecordingAudio(rec.getName());
+					audioControls.setAttribute("src", "data:audio/mpeg;base64," + b64);
+
+					let download = document.getElementById("audio-download");
+					download.setAttribute("download", "audio.mp3");
+					download.setAttribute("href", "data:audio/mpeg;base64," + b64);
+
+					let channel = document.getElementById("audio-channel");
+					channel.text = rec.getChannelName();
+
+					let size = document.getElementById("audio-size");
+					size.text = formatSize(rec.getSize());
+
+					events = rec.getEvents()
+				});
+				actions.appendChild(play);
+
+				let del = document.createElement("img");
+				del.src = "/img/trash.svg";
+				del.setAttribute("alt", "Delete");
+				del.addEventListener('click', () => {
+					event.stopPropagation();
+					let dialog = new Dialog();
+
+					dialog.addHeader(new DialogHeader()
+						.setTitle("Delete recording")
+						.setSubtitle("Are you sure?"));
+
+					let btnYes = new UIButton("Yes");
+					btnYes.setStyle("background-color: var(--red);");
+					btnYes.onInteract(() => {
+						dialog.close();
+						AudioRecording.deleteRecording(rec.getName());
+						delete rec;
+						item.remove();
+					});
+
+					let btnNo = new UIButton("No");
+					btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+					btnNo.onInteract(() => dialog.close());
+
+					dialog.addField(new DialogEmptyField()
+						.addUIElement(btnYes)
+						.addUIElement(btnNo)
+						.setStyle("flex-direction: row;"));
+				});
+				actions.appendChild(del);
+
+				item.appendChild(actions);
+				return item;
+			}
+
+			function getTalkingUsersAt(audioFrame) {
+				let users = [];
+				for(let event of events) {
+					if(event.getType() != "UPDATE_TALKING_USERS") continue;
+					if(event.getFrameIndex() > audioFrame) return users;
+					users = event.getUsers();
+				}
+				return users;
+			}
+
+			function getUsersAt(audioFrame) {
+				let users = [];
+				for(let event of events) {
+					if(event.getType() != "UPDATE_USERS") continue;
+					if(event.getFrameIndex() > audioFrame) return users;
+					users = event.getUsers();
+				}
+				return users;
+			}
+
+			async function record(){
+				let btn = document.getElementById("record-button");
+
+				if(isRecording){
+					AudioRecording.stopRecording();
+					isRecording = false;
+					btn.removeAttribute("recording");
+				}else{
+					AudioRecording.startRecording();
+					isRecording = true;
+					btn.setAttribute("recording", true);
+				}
+			}
+		</script>
+	</head>
+	<body>
+        <div class="module-header">
+            <div class="module-text">
+                <h1>Record</h1>
+                <a>Get your sweet voice as a nice MP3</a>
+            </div>
+            <div>
+                <a class="record" id="record-button" onclick="record()">Record</a>
+                <a class="disable-module" onclick="disableModule('RECORD')">Disable</a>
+            </div>
+        </div>
+        <div id="record-center">
+			<div id="recorded-files">
+				<a>Recordings</a>
+				<div id="recordings"></div>
+			</div>
+			<div id="recorded-members">
+				<a>Recorded members</a>
+				<div id="user-list"></div>
+			</div>
+			<div id="audio-item">
+				<div id="audio-info">
+					<a id="audio-title">audio.mp3</a>
+					<a id="audio-size">- KB</a>
+					<a id="audio-channel">Voicechannel</a>
+				</div>
+				<div id="audio-player">
+					<audio id="audio-controls" preload="metadata"></audio>
+					<img src="/img/Music/play.svg" id="play-icon"/>
+					<input type="range" id="seek-slider" max="100" value="0">
+					<div>
+						<span id="current-time">00:00</span>
+						<span>/</span>
+						<span id="duration">00:00</span>
+					</div>
+					<input type="range" id="volume-slider" max="100" value="100">
+					<output id="volume-output">100</output>
+				</div>
+				<a id="audio-download"><img id="download" src="/img/download.svg" alt=""/></a>
+			</div>
+	</body>
+</html>

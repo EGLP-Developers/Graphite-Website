@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/admin.css">
+		
+		<script>
+			var tasks = [];
+
+			baseLoaded(async() => {
+				if(!checkWebinterfaceAdmin()) return;
+
+				tasks = await Task.getTasks();
+				let tsks = document.getElementById("tasks");
+
+				/*for(let task of tasks){
+					let item = document.createElement("div");
+					item.classList.add("task");
+
+					let name = document.createElement("a");
+					name.classList.add("task-name");
+					name.text = (task.hasTerminated() ? "[STOPPED] " : "[RUNNING] ") + task.getName();
+					item.appendChild(name);
+
+					let restart = document.createElement("a");
+					restart.classList.add("task-restart");
+					restart.addEventListener('click', async () => {
+						await Bot.restartTask();
+						showAlert("Successfully restarted task");
+					});
+					restart.text = "Restart";
+					item.appendChild(restart);
+
+					tsks.appendChild(item);
+				}*/
+			});
+
+			function executeAdminAction(action){
+				if(!user.isAdmin()) return;
+				
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Execute admin action")
+					.setSubtitle("Action: " + action));
+
+				let btn = new UIButton("Execute");
+				btn.setStyle("background-color: var(--red)");
+				btn.onInteract(() => {
+					switch(action){
+						case "restartAllTasks":
+							Task.restartAllTasks();
+							break;
+						case "restart":
+							Bot.restart();
+							break;
+						case "shutdown":
+							Bot.shutdown();
+							break;
+					}
+					dialog.close();
+				});
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(btn));
+			}
+
+			function taskList(){
+				let site = new DynamicSite();
+
+				site.addHeader(new DynamicSiteHeader()
+					.setTitle("Task list"));
+
+				let emptyField = new DynamicSiteEmptyField();
+
+				for(let task of tasks){
+					let item = document.createElement("div");
+					item.classList.add("task");
+
+					let status = document.createElement("a");
+					status.classList.add("task-status");
+					status.text = task.hasTerminated() ? "[STOPPED] >" : "[RUNNING] >";
+					item.appendChild(status);
+
+					let name = document.createElement("a");
+					name.classList.add("task-name");
+					name.text = task.getName();
+					item.appendChild(name);
+
+					let restart = document.createElement("a");
+					restart.classList.add("task-restart");
+					restart.addEventListener('click', async () => {
+						await Bot.restartTask();
+						showAlert("Successfully restarted task");
+					});
+					restart.text = "Restart";
+					item.appendChild(restart);
+
+					emptyField.addElement(item);
+				}
+
+				site.addField(emptyField);
+			}
+
+			function openWebsite(link){
+				window.open(link, "_blank");
+			}
+
+		</script>
+	</head>
+	<body>
+		<div id="admin-settings">
+			<div onclick="executeAdminAction('shutdown')">
+				<img alt="" src="/img/shutdown.svg"/>
+				<a>Shutdown</a>
+			</div>
+			<div onclick="executeAdminAction('restart')">
+				<img alt="" src="/img/restart.svg"/>
+				<a>Restart</a>
+			</div>
+			<div onclick="executeAdminAction('restartAllTasks')">
+				<img alt="" src="/img/restart.svg"/>
+				<a>Restart all tasks</a>
+			</div>
+			<div onclick="taskList()">
+				<img alt="" src="/img/task.svg"/>
+				<a>Task list</a>
+			</div>
+			<div disabled="true">
+				<img alt="" src="/img/broadcast.svg"/>
+				<a>Broadcast (WIP)</a>
+			</div>
+			<div disabled="true">
+				<img alt="" src="/img/broadcast.svg"/>
+				<a>Broadcast to all (WIP)</a>
+			</div>
+			<div disabled="true">
+				<img alt="" src="/img/question.svg"/>
+				<a>Who is? (WIP)</a>
+			</div>
+			<div disabled="true">
+				<img alt="" src="/img/question.svg"/>
+				<a>Kick all (WIP)</a>
+			</div>
+			<div onclick="openWebsite('https://zap-hosting.com/de/')">
+				<img alt="" src="/img/website.svg"/>
+				<a>ZAP-Hosting</a>
+			</div>
+			<div onclick="openWebsite('https://www.cloudflare.com/de-de/')">
+				<img alt="" src="/img/website.svg"/>
+				<a>Cloudflare</a>
+			</div>
+			<div onclick="openWebsite('https://fonts.google.com/icons?icon.query=Website')">
+				<img alt="" src="/img/website.svg"/>
+				<a>Google icons</a>
+			</div>
+		</div>
+	</body>
+</html>

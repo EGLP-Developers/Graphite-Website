@@ -1,0 +1,134 @@
+#script-header, #script-body{
+	display: flex;
+	flex-direction: column;
+	margin-top: 30px;
+}
+
+#script-header > a{
+	font-size: 13px;
+	color: #D3D3D3;
+}
+
+#script-header-buttons{
+	margin-top: 10px;
+}
+
+#script-header-buttons > a{
+	border: none;
+	outline: none;
+	text-decoration: none;
+	background-color: var(--blue);
+	margin-top: 10px;
+	border-radius: 3px;
+	color: #fff;
+	padding: 7px 15px;
+	align-self: flex-start;
+	cursor: pointer;
+	font-size: 13px;
+}
+
+#script-body > a{
+	font-size: 14px;
+	color: #D3D3D3;
+	font-weight: bold;
+}
+
+#scripts{
+	display: flex;
+	flex-direction: column;
+}
+
+#script-header-buttons > .inputfile + label {
+	background-color: var(--blue);
+	display: inline-block;
+	padding: 6.5px 15px;
+	border-radius: 3px;
+	cursor: pointer;
+	color: #fff;
+	font-size: 13px;
+}
+
+#script-header-buttons > label:hover{
+	color: #fff;
+	background-color: var(--blue);
+	transition: all .3s ease-in-out;
+}
+
+#script-header-buttons > .inputfile {
+	width: 0.1px;
+	height: 0.1px;
+	opacity: 0;
+	overflow: hidden;
+	position: absolute;
+	z-index: -1;
+}
+
+.script-item{
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	padding: 13px;
+	border-radius: 3px;
+	margin: 10px 0;
+	height: 18px;
+	color: #fff;
+	font-size: 14px;
+}
+
+.script-item:hover{
+	transition: all .3s ease-in-out;
+	background-color: var(--primary-color);
+}
+
+.script-item:hover .script-actions{
+	display: flex;
+}
+
+.script-actions{
+	display: none;
+	align-items: center;
+	position: absolute;
+	top: -13px;
+	right: -13px;
+	gap: 5px;
+}
+
+.script-actions > a{
+	font-size: 13px;
+	background-color: var(--blue);
+	border-radius: 3px;
+	padding: 5px;
+	cursor: pointer;
+}
+
+.script-actions > img{
+	display: flex;
+	width: 14px;
+	backface-visibility: hidden;
+	cursor: pointer;
+	padding: 6px;
+	background-color: var(--red);
+	border-radius: 100%;
+}
+
+/*TEST*/
+
+.site-header{
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.site-header-text{
+	display: flex;
+	flex-direction: column;
+	color: #fff;
+}
+
+.site-header-text > h1{
+	font-size: 18px;
+}
+
+.site-header-text > a{
+	font-size: 14px;
+}

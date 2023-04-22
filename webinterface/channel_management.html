@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/channel_management.css">
+		
+		<script>
+			var rawAutoChannels = [];
+			var globalAutoChannels = {};
+	
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('CHANNEL_MANAGEMENT')) return;
+				if(!checkModuleEnabled('CHANNEL_MANAGEMENT')) return;
+
+				rawAutoChannels = await AutoChannel.getAutoChannels();
+				for(let ac of rawAutoChannels) globalAutoChannels[ac.getChannel().id] = ac;
+
+
+				let autochannelDiv = document.getElementById("autochannel");
+
+				let t = new UIListSelector();
+				t.addVoiceChannels(async (voicechannel, element) => {
+					let c = await AutoChannel.addAutoChannel(voicechannel.getID());
+					globalAutoChannels[c.getChannel().getID()] = c;
+
+					t.addListElement(new UIListSelectorElement()
+						.addText(voicechannel.getName())
+						.setAttribute("value", voicechannel.getID())
+						.onRemove(() => {
+							AutoChannel.removeAutoChannel(c.getChannel().getID());
+							delete globalAutoChannels[c.getChannel().getID()];
+						})
+						.onInteract(() => setAutoChannelCategory(c.getChannel().getID())));
+				});
+
+				rawAutoChannels.forEach(c => {
+					t.addListElement(new UIListSelectorElement()
+						.addText(c.getChannel().getName())
+						.setAttribute("value", c.getChannel().getID())
+						.onRemove(() => {
+							AutoChannel.removeAutoChannel(c.getChannel().getID());
+							delete globalAutoChannels[c.getChannel().getID()];
+						})
+						.onInteract(() => setAutoChannelCategory(c.getChannel().getID())));
+				});
+
+				t.setStyle("margin-top: 10px;");
+				autochannelDiv.appendChild(t.build());
+			});
+
+			function setAutoChannelCategory(channelID){
+				let channel = globalAutoChannels[channelID];
+				if(channel == null) showAlert("Category can't be set. Try to reload the site.", true);
+				let channelCategory = channel.getCategory() != null ? channel.getCategory() : null;
+
+				let d = new Dialog();
+
+				d.addHeader(new DialogHeader()
+					.setTitle("Autochannel category"));
+
+				let f = new DialogField();
+				f.setTitle("Category");
+				let categories = new UIDropdown();
+				categories.setPlaceholder("Select autochannel category...");
+				categories.addCategories((category, element) => {
+					AutoChannel.setAutoChannelCategory(channelID, category.getID());
+					channel.category = category;
+					d.close();
+					showAlert("Autochannel category set");
+				});
+				if(channelCategory != null) categories.findElementByAttribute("value", channelCategory.getID());
+				f.addUIElement(categories);
+				d.addField(f);
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Channel Management</h1>
+				<a>Automate your channel management</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('CHANNEL_MANAGEMENT')">Disable</a>
+		</div>
+		<div id="autochannel">
+			<a id="autochannel-title">Autochannel</a>
+			<a id="autochannel-description">Autochannels will automatically be duplicated when someone joins the selected channel.<br>Click on an existing autochannel to change its category</a>
+		</div>
+	</body>
+</html>

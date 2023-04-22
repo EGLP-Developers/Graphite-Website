@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/scripts.css">
+		
+		<script>
+			var scripts = [];
+			var currentAction = null;
+			var currentCommand = null;
+
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('SCRIPTING')) return;
+				if(!checkModuleEnabled('SCRIPTING')) return;
+				
+				scripts = await Script.getScripts();
+
+				let scrLi = document.getElementById("scripts");
+
+				for(let script of scripts) scrLi.appendChild(scriptItem(script));
+
+				let e = document.getElementById("file");
+				e.addEventListener('change', (e) => {
+					for(let file of e.target.files){
+						if(file.type != "application/x-javascript" && file.type != "application/javascript" && file.type != "text/javascript") continue;
+						let fr = new FileReader();
+						fr.onloadend = async() => {
+							let b64 = window.btoa(fr.result);
+							let scr = await Script.uploadScript(file.name.split(".")[0], b64);
+							if(!scripts.includes(scr)) scripts.push(scr);
+							scrLi.appendChild(scriptItem(scr));
+						};
+						fr.readAsBinaryString(file);
+					}
+				});
+			});
+
+			async function createCustomCommand(name){
+				let resp = await CustomCommand.getCustomCommandByName(name);
+				if(resp != null) {
+					showAlert("A CustomCommand with this name already exists. Please delete it first", true);
+					return;
+				}
+
+				currentCommand = new CustomCommand();
+				currentCommand.setActions([]);
+
+				currentCommand.setName(name);
+				
+				let fAction = new CommandAction();
+				fAction.type = CommandActionType.CALL_COMMAND_SCRIPT;
+				fAction.propertyRefs = [];
+				currentCommand.getActions()[0] = fAction;
+
+				let fixedRef = new CommandActionPropertyRef();
+				fixedRef.setForProperty("script");
+				fixedRef.setValue(name);
+				fAction.propertyRefs.push(fixedRef);
+
+				let fixedRef2 = new CommandActionPropertyRef();
+				fixedRef2.setForProperty("data");
+				fixedRef2.setArgumentName("data");
+				fAction.propertyRefs.push(fixedRef2);
+
+				await CustomCommand.updateCustomCommand(currentCommand);
+				showAlert("CustomCommand created");
+			}
+
+			function scriptItem(script){
+				let i = document.createElement("div");
+				i.id = script;
+				i.classList.add("script-item");
+
+				let name = document.createElement("a");
+				name.classList.add("script-name");
+				name.text = script.getName();
+				i.appendChild(name);
+
+				let actions = document.createElement("div");
+				actions.classList.add("script-actions");
+
+				//CREATE CUSTOCOMMAND
+				let ccImg = document.createElement("a");
+				ccImg.addEventListener('click', () => createCustomCommand(script.getName()));
+				ccImg.text = "Create CustomCommand";
+				actions.appendChild(ccImg);
+
+				//DELETE SCRIPT
+				let delImg = document.createElement("img");
+				delImg.addEventListener('click', () => deleteScript(script));
+				delImg.setAttribute("alt", "Delete");
+				delImg.setAttribute("src", "../img/trash.svg");
+				actions.appendChild(delImg);
+
+				i.appendChild(actions);
+
+				return i;
+			}
+
+			function deleteScript(script){
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Delete script")
+					.setSubtitle("This action is irreversible! Are you sure?"));
+
+				let btnYes = new UIButton("Yes");
+				btnYes.setStyle("background-color: var(--red);");
+				btnYes.onInteract(() => {
+					Script.deleteGuildScript(script.getName());
+					if(scripts.includes(script)) removeArrayElement(scripts, script);
+					let el = document.getElementById(script);
+					el.remove();
+					dialog.close();
+				});
+
+				let btnNo = new UIButton("No");
+				btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+				btnNo.onInteract(() => dialog.close());
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(btnYes)
+					.addUIElement(btnNo)
+					.setStyle("flex-direction: row;"));
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Scripting</h1>
+				<a>Scripts gives you a whole new way to create you own features in Graphite</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('SCRIPTING')">Disable</a>
+		</div>
+		<div id="script-header">
+			<a>Scripts can be used to add new features to Graphite like custom messages</a>
+			<div id="script-header-buttons">
+				<input type="file" name="files[]" id="file" class="inputfile" accept="application/javascript" multiple>
+				<label for="file">Upload</label>
+				<a href="https://graphite-official.com/scripting" target="_blank">Documentation</a>
+				<a href="../website-data/whatsthetime.js" download>Example</a>
+			</div>
+		</div>
+		<div id="script-body">
+			<a>Your scripts</a>
+			<div id="scripts"></div>
+		</div>
+	</body>
+</html>

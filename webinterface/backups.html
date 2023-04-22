@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/backups.css">
+		
+		<script>
+			var globalBackups = {};
+			var backups = [];
+			var canCreateBackup = false;
+			var lastAutoBackup = -1;
+			var backupInterval = -1;
+
+			var selected = [...RestoreSelector.values()];
+	
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('BACKUPS')) return;
+				if(!checkModuleEnabled('BACKUPS')) return;
+
+				backups = await Backup.getBackups();
+				canCreateBackup = await Backup.canCreateBackup();
+				lastAutoBackup = await Backup.getLastAutoBackup();
+				backupInterval = await Backup.getBackupInterval();
+
+				let btn = document.getElementById("create-backup");
+				if(!canCreateBackup) btn.setAttribute("disabled", true);
+
+				let bL = document.getElementById("backups");
+				for(let backup of backups){
+					globalBackups[backup.getName()] = backup;
+					bL.appendChild(backupItem(backup.getName()));
+				}
+			});
+
+			function searchBackup(elem){
+				let con = document.getElementById("backups");
+				for(let child of con.children){
+					child.style.display = (child.firstChild.text.toLowerCase().includes(elem.value.toLowerCase()) ? "flex" : "none");
+				}
+			}
+
+			function backupItem(backupName){
+				let backup = globalBackups[backupName];
+
+				let item = document.createElement("div");
+				item.classList.add("backup-item");
+				item.id = backupName.replace(" ", "-").toLowerCase();
+				item.addEventListener('click', () => backupPreview(backupName));
+
+				let id = document.createElement("a");
+				id.text = backup.getName();
+				id.classList.add("backup-id");
+				item.appendChild(id);
+
+				let delImage = document.createElement("img");
+				delImage.setAttribute("src", "../img/trash.svg");
+				delImage.addEventListener('click', () => {
+					event.stopPropagation();
+					deleteBackupByName(backupName, true);
+				});
+				item.appendChild(delImage);
+
+				return item;
+			}
+
+			async function createBackup(){
+				let backupBtn = document.getElementById("create-backup");
+				backupBtn.setAttribute("disabled", true);
+
+				let data = await Backup.createBackup();
+				if(data == null) return;
+				globalBackups[data.backup.getName()] = data.backup;
+
+				let ctn = document.getElementById("backups");
+				ctn.appendChild(backupItem(data.backup.getName()));
+				let s = base64ToArrayBuffer(data.decryptionKey);
+				download(s, "backup-" + data.backup.getName() + ".key", "application/octet-stream");
+
+				backupBtn.removeAttribute("disabled");
+			}
+
+			function deleteAllBackups(){
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Delete all backups")
+					.setSubtitle("This action is irreversible! Are you sure?"));
+
+				let btnYes = new UIButton("Yes");
+				btnYes.setStyle("background-color: var(--red);");
+				btnYes.onInteract(() => {
+					Backup.deleteAllBackups();
+					let con = document.getElementById("backups");
+					while(con.firstChild) con.removeChild(con.firstChild);
+					globalBackups = [];
+					let backupBtn = document.getElementById("create-backup");
+					backupBtn.removeAttribute("disabled");
+					dialog.close();
+				});
+
+				let btnNo = new UIButton("No");
+				btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+				btnNo.onInteract(() => dialog.close());
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(btnYes)
+					.addUIElement(btnNo)
+					.setStyle("flex-direction: row;"));
+			}
+
+			function deleteBackupByName(backupName){
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Delete backup")
+					.setSubtitle("This action is irreversible! Are you sure?"));
+
+				let btnYes = new UIButton("Yes");
+				btnYes.setStyle("background-color: var(--red);");
+				btnYes.onInteract(() => {
+					Backup.deleteBackup(backupName);
+					let el = document.getElementById(backupName.replace(" ", "-").toLowerCase());
+					el.remove();
+					delete globalBackups[backupName];
+					dialog.close();
+				});
+
+				let btnNo = new UIButton("No");
+				btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+				btnNo.onInteract(() => dialog.close());
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(btnYes)
+					.addUIElement(btnNo)
+					.setStyle("flex-direction: row;"));
+			}
+
+			async function getBackupChannels(backupName){
+				let backup = globalBackups[backupName];
+
+				let cData = await Backup.getBackupChannelsData(backupName);
+
+				let channels = document.createElement("div");
+				channels.id = "backup-channels";
+
+				for(let textchannel of cData.getTextChannels()) {
+					let t = document.createElement("a");
+					t.classList.add("backup-textchannel");
+					t.style.order = textchannel.getPosition();
+					t.text = textchannel.getName();
+					channels.appendChild(t);
+				}
+
+				for(let newschannel of cData.getNewsChannels()){
+					let t = document.createElement("a");
+					t.classList.add("backup-textchannel");
+					t.style.order = newschannel.getPosition();
+					t.text = newschannel.getName();
+					channels.appendChild(t);
+				}
+
+				for(let voicechannel of cData.getVoiceChannels()) {
+					let t = document.createElement("a");
+					t.classList.add("backup-voicechannel");
+					t.style.order = voicechannel.getPosition();
+					t.text = voicechannel.getName();
+					channels.appendChild(t);
+				}
+
+				for(let stagechannel of cData.getStageChannels()){
+					let t = document.createElement("a");
+					t.classList.add("backup-voicechannel");
+					t.style.order = stagechannel.getPosition();
+					t.text = stagechannel.getName();
+					channels.appendChild(t);
+				}
+
+				for(let category of cData.getCategories()){
+					let cat = document.createElement("div");
+					cat.classList.add("backup-category");
+					channels.appendChild(cat);
+
+					let catName = document.createElement("a");
+					catName.text = category.getName();
+					catName.classList.add("backup-category-name");
+					cat.appendChild(catName);
+
+					for(let textchannel of category.getTextChannels()){
+						let t = document.createElement("a");
+						t.classList.add("backup-textchannel");
+						t.style.order = textchannel.getPosition();
+						t.text = textchannel.getName();
+						cat.appendChild(t);
+					}
+
+					for(let newschannel of category.getNewsChannels()){
+						let t = document.createElement("a");
+						t.classList.add("backup-textchannel");
+						t.style.order = newschannel.getPosition();
+						t.text = newschannel.getName();
+						channels.appendChild(t);
+					}
+
+					for(let voicechannel of category.getVoiceChannels()){
+						let t = document.createElement("a");
+						t.classList.add("backup-voicechannel");
+						t.style.order = voicechannel.getPosition();
+						t.text = voicechannel.getName();
+						cat.appendChild(t);
+					}
+					
+					for(let stagechannel of category.getStageChannels()){
+						let t = document.createElement("a");
+						t.classList.add("backup-voicechannel");
+						t.style.order = stagechannel.getPosition();
+						t.text = stagechannel.getName();
+						channels.appendChild(t);
+					}
+				}
+
+				return channels;
+			}
+
+			async function getBackupRoles(backupName){
+				let backup = globalBackups[backupName];
+
+				let rData = await Backup.getBackupRolesData(backupName);
+
+				let roles = document.createElement("div");
+				roles.id = "backup-roles";
+
+				for(let role of rData.getRoles()){
+					let r = document.createElement("a");
+					r.style.border = "1px solid " + getHexColor(role.getColor());
+					r.text = role.getName();
+					roles.appendChild(r);
+				}
+
+				return roles;
+			}
+
+			async function backupPreview(backupName){
+				let backup = globalBackups[backupName];
+
+				let dynamicPreview = new DynamicSite();
+
+				dynamicPreview.addHeader(new DynamicSiteHeader()
+					.setTitle("Backup")
+					.setSubtitle(backupName));
+
+				let fRename = new DynamicSiteField();
+				fRename.setTitle("Rename backup")
+				let rename = new UIInput();
+				rename.setValue(backupName);
+				rename.onChange(async () => {
+					let val = rename.getValue();
+					if(val.trim().length == 0){
+						showAlert("Please enter a valid name", true);
+						return;
+					}
+					await Backup.renameBackup(backupName, val);
+
+					backup.name = val;
+					globalBackups[val] = backup;
+					delete globalBackups[backupName];
+
+					let con = document.getElementById("backups");
+					let i = document.getElementById(backupName.replace(" ", "-").toLowerCase());
+					if(i != null) con.replaceChild(backupItem(val), i);
+
+					dynamicPreview.close();
+				});
+				fRename.addUIElement(rename);
+				dynamicPreview.addField(fRename);
+
+				let f1 = new DynamicSiteField();
+				f1.setTitle("Channels & Roles");
+				await getBackupChannels(backupName).then(t => f1.addElement(t));
+				await getBackupRoles(backupName).then(t => f1.addElement(t));
+				f1.setStyle("flex-direction: row; justify-content: space-between;");
+				dynamicPreview.addField(f1);
+				
+				let restore = new UIButton("Restore");
+				restore.setStyle("background-color: var(--green)");
+				restore.onInteract(() => {
+					let dialog = new Dialog();
+
+					dialog.addHeader(new DialogHeader()
+						.setTitle("Careful!")
+						.setSubtitle("When restoring a backup, you risk destroying your Discord server's current state.\n\nThe bot will delete channels, roles and change server settings.\nBackups may be corrupt.\nThreads will not be restored!\n\nIf you're unsure about what you're doing, make sure to first try this on a testing server! If you experience any issues, feel free to contact us on our Discord server. We will help you to the best of our ability, but take no responsibility for broken or incomplete backups!")
+						.setStyle("align-items: flex-start;"));
+
+					let accept = new UIButton("Accept the risk...");
+					accept.setStyle("background-color: var(--red);");
+					accept.onInteract(() => {
+						dialog.close();
+						restorePreview(backupName);
+						addRequirementTooltips();
+					});
+
+					dialog.addField(new DialogEmptyField()
+						.addUIElement(accept));
+				});
+
+				let publish = new UIButton("Publish");
+				publish.setStyle("background-color: var(--blue)");
+				publish.onInteract(() => publishPreview(backupName));
+
+				dynamicPreview.addField(new DynamicSiteEmptyField()
+					.addUIElement(restore)
+					.addUIElement(publish)
+					.setStyle("flex-direction: row;"));
+			}
+
+			function publishPreview(backupName){
+				let backup = globalBackups[backupName];
+
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Publish: " + backupName));
+
+				let f0 = new DialogField();
+				f0.setTitle("Important information before publish");
+				f0.addUIElement(new UINote("Attention!", "Before you publish your backup please make sure you want to share it with the Graphite community").red());
+				dialog.addField(f0);
+
+				let f1 = new DialogField();
+				f1.setTitle("Global name");
+				let gName = new UIInput();
+				f1.addUIElement(gName);
+				dialog.addField(f1);
+
+				let f2 = new DialogField();
+				f2.setTitle("Global description");
+				let inp = new UITextInput();
+				f2.addUIElement(inp);
+				dialog.addField(f2);
+
+				let publish = new UIButton("Publish & Close");
+				publish.setStyle("background-color: var(--blue);");
+				publish.onInteract(async () => {
+					if(!/^[a-zA-Z0-9 ]{3,50}$/.test(gName.getValue())){
+						showAlert("The name needs to be alphanumerically between 3 and 50 characters", true);
+						return;
+					}
+					if(!/^[a-zA-Z0-9 \n.,-_?!]{0,255}$/.test(inp.getValue())){
+						showAlert("Invalid description", true);
+						return;
+					}
+					await TempBackup.createTemplateBackup(backupName, gName.getValue(), inp.getValue());
+					dialog.close();
+					removeOpenDynamicSites();
+					showAlert("Successfully created template");
+				});
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(publish));
+
+				return dialog;
+			}
+
+			function restorePreview(backupName){
+				let backup = globalBackups[backupName];
+
+				let decryptionKeyDrop;
+
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Restore: " + backupName));
+
+				let f1 = new DialogField();
+				f1.setTitle("Important information before restore");
+				f1.addUIElement(new UINote("Attention!", "We are NOT responsible for incomplete/corrupted backups!").red());
+
+				if(!isAboveUserRoles){
+					f1.addUIElement(new UINote("Spooooky", "I can't interact with some roles. To work well, my role needs to be above all user roles.").red());
+				}
+
+				let cHHtml = new UINote("Attention!", "To restore the chat history, you need to attach your decryption key which was sent to you after the backup was created").red();
+				f1.addUIElement(cHHtml);
+
+				f1.setStyle("gap: 5px;");
+				dialog.addField(f1);
+
+				let restoreSelector = RestoreSelector.values();
+
+				let fModeration = new DialogField();
+				fModeration.setTitle("Moderation settings")
+				restoreSelector.filter(val => val.name().startsWith("MODERATION")).forEach(f => {
+					let checkbox = new UICheckboxWithText();
+					checkbox.setText(f.getFriendlyName());
+					checkbox.setAttribute("data-id", f.name());
+					checkbox.getCheckboxInput().checked = true;
+					fModeration.addUIElement(checkbox);
+				});
+				dialog.addField(fModeration);
+
+				let fDiscord = new DialogField();
+				fDiscord.setTitle("Discord server");
+				restoreSelector.filter(val => val.name().startsWith("DISCORD")).forEach(f => {
+					let checkbox = new UICheckboxWithText();
+					checkbox.setText(f.getFriendlyName() + (f.name() == "DISCORD_CHAT_HISTORY" ? " (attach key below)" : ""));
+					checkbox.setAttribute("data-id", f.name());
+					checkbox.getCheckboxInput().checked = true;
+					fDiscord.addUIElement(checkbox);
+
+					if(f.name() == "DISCORD_CHAT_HISTORY"){
+						checkbox.onInteract(() => {
+							if(checkbox.getCheckboxInput().checked){
+								cHHtml.show();
+								decryptionKeyDrop.show();
+							}else{
+								cHHtml.hide();
+								decryptionKeyDrop.hide();
+							}
+						});
+					}
+				});
+				decryptionKeyDrop = new UIDrop();
+				decryptionKeyDrop.setText("Drag&Drop the decryption key here to restore messages from your backup");
+				decryptionKeyDrop.onDrop((event) => {
+					if(event.dataTransfer.files > 1) return;
+					let f = event.dataTransfer.files[0];
+
+					let fr = new FileReader();
+					fr.onloadend = async () => {
+						let b64 = window.btoa(fr.result);
+						decryptionKeyDrop.setAttribute("decryption-key", b64);
+						decryptionKeyDrop.setText("Chat history will be restored");
+					};
+					fr.readAsBinaryString(f);
+				});
+				fDiscord.addUIElement(decryptionKeyDrop);
+				dialog.addField(fDiscord);
+
+				let fOther = new DialogField();
+				fOther.setTitle("Other settings");
+				restoreSelector.filter(val => !val.name().startsWith("DISCORD") && !val.name().startsWith("MODERATION")).forEach(f => {
+					let checkbox = new UICheckboxWithText();
+					checkbox.setText(f.getFriendlyName());
+					checkbox.setAttribute("data-id", f.name());
+					checkbox.getCheckboxInput().checked = true;
+					fOther.addUIElement(checkbox);
+
+				});
+				dialog.addField(fOther);
+
+				let restore = new UIButton("Restore & Close");
+				restore.setStyle("background-color: var(--green);");
+				restore.onInteract(() => {
+					Backup.restoreBackup(backupName, decryptionKeyDrop.getAttribute("decryption-key"), selected.map(r => r.name()));
+					dialog.close();
+					removeOpenDynamicSites();
+				});
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(restore));
+			}
+
+			function addRequirementTooltips(){
+				let dialogBody = document.getElementsByClassName("dialog-background")[0];
+				let checkboxes = dialogBody.getElementsByClassName("ui-checkbox");
+				Array.from(checkboxes).forEach(checkbox => {
+					let v = RestoreSelector.valueOf(checkbox.getAttribute("data-id"));
+
+					if(v.getRequires().length != 0){
+						let tooltip = document.createElement("a");
+						tooltip.classList.add("tooltiptext");
+						tooltip.text += "Requires:\n";
+						tooltip.text += v.getRequires().map(r => r.getFriendlyName());
+						checkbox.parentElement.appendChild(tooltip);
+					}
+
+					checkbox.addEventListener('click', () => {
+						if(checkbox.checked) {
+							selected.push(v);
+						}else {
+							removeArrayElement(selected, v);
+						}
+
+						Array.from(checkboxes).forEach(ch => {
+							let r = RestoreSelector.valueOf(ch.getAttribute("data-id"));
+							let contained = selected.includes(r);
+							let missing = getMissingRequirements(r, selected);
+							ch.checked = contained && missing.length == 0;
+
+							if(missing.length != 0) {
+								ch.parentElement.setAttribute("disabled", true);
+							}else {
+								ch.parentElement.removeAttribute("disabled");
+							}
+						});
+					});
+				});
+			}
+
+			function getMissingRequirements(selector, selectors) {
+				let m = [];
+				for(let r of selector.getRequires()) {
+					if(!selectors.includes(r) || getMissingRequirements(r, selectors).length != 0) m.push(r);
+				}
+				return m;
+			}
+
+			function intervalBackups(){
+				let t = {
+					1: ["1", "(every day)"],
+					2: ["2", "days"],
+					7: ["7", "days"],
+					14: ["14", "days"],
+					30: ["30", "days"]
+				};
+
+				let interval;
+						
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Interval backups"));
+
+				let f1 = new DialogField();
+				f1.setTitle("Backup interval");
+				f1.setSubtitle("Last auto backup: " + (lastAutoBackup != -1 ? lastAutoBackup : "-"));
+
+				let dd = new UIDropdown();
+				dd.setPlaceholder("Select backup interval...");
+				Object.entries(t).map(e => {
+					let ddEl = new UIDropdownElement();
+					ddEl.addText(e[1][0]);
+					ddEl.addSubtext(e[1][1]);
+					ddEl.setAttribute("value", e[0]);
+					ddEl.onInteract(() => interval = e[0]);
+					dd.addUIElement(ddEl);
+				});
+				if(backupInterval != -1) dd.findElementByAttribute("value", backupInterval);
+				f1.addUIElement(dd);
+				dialog.addField(f1);
+
+				let saveBtn = new UIButton("Save & Close");
+				saveBtn.setStyle("background-color: var(--blue);");
+				saveBtn.onInteract(() => {
+					if(interval != null) {
+						Backup.setBackupInterval(parseInt(interval));
+						backupInterval = parseInt(interval);
+					}
+					dialog.close();
+				});
+
+				let resetBtn = new UIButton("Reset & Close");
+				resetBtn.setStyle("background-color: var(--red);");
+				resetBtn.onInteract(() => {
+					backupInterval = -1;
+					Backup.disableAutoBackups();
+					dialog.close();
+				});
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(saveBtn)
+					.addUIElement(resetBtn)
+					.setStyle("flex-direction: row;"));
+			}
+
+			function copyBackup(){
+				let guild = null;
+				let backup = null;
+				let decryptionKey = null;
+
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Copy backup")
+					.setSubtitle("Copy a backup from another guild to your backups"));
+
+				dialog.addField(new DialogField()
+					.setTitle("Guild")
+					.setSubtitle("The guild you want to copy from")
+					.addUIElement(new UIDropdown()
+						.addGuilds((g, elem) => guild = g.getID())
+						.selectFirst((elem) => guild = elem.getAttribute("value"))));
+
+				dialog.addField(new DialogField()
+					.setTitle("Backup name")
+					.setSubtitle("The backup you want to copy")
+					.addUIElement(new UIInput()
+						.onChange((input) => backup = input.value)));
+
+				let keyDrop = new UIDrop()
+					.setText("Attach decryption key to copy messages (optional)")
+					.onDrop((event) => {
+						if(event.dataTransfer.files > 1) return;
+						let f = event.dataTransfer.files[0];
+
+						let fr = new FileReader();
+						fr.onloadend = async () => {
+							let b64 = window.btoa(fr.result);
+							decryptionKey = b64;
+							keyDrop.setText("Chat history will be copied");
+						};
+						fr.readAsBinaryString(f);
+					});
+
+				dialog.addField(new DialogField()
+					.setTitle("Decryption key")
+					.setSubtitle("The decryption key to copy messages")
+					.addUIElement(keyDrop));
+
+				let copyBtn = new UIButton("Copy & Close");
+				copyBtn.setStyle("background-color: var(--green);");
+				copyBtn.onInteract(async () => {
+					if(guild == null) return;
+					if(backup == null){
+						showAlert("Please enter the backup you want to copy", true);
+						return;
+					}
+					let data = await Backup.copyBackup(guild, backup, decryptionKey);
+					globalBackups[data.backup.getName()] = data.backup;
+					let backups = document.getElementById("backups");
+					backups.appendChild(backupItem(data.backup.getName()));
+					if(data.decryptionKey != null){
+						let s = base64ToArrayBuffer(data.decryptionKey);
+						download(s, "backup-" + data.backup.getName() + ".key", "application/octet-stream");
+					}
+					dialog.close();
+				});
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(copyBtn));
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Backups</h1>
+				<a>Backups can save your current Discord state so you can test some changes and if you destroy something you can restore this state</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('BACKUPS')">Disable</a>
+		</div>
+		<div id="backup-header">
+			<input placeholder="Search..." oninput="searchBackup(this)"></input>
+			<div id="backup-header-buttons">
+				<button id="create-backup" onclick="createBackup()">New backup</button>
+				<button onclick="copyBackup()">Copy backup</button>
+				<button onclick="intervalBackups()">Interval backups</button>
+				<button onclick="deleteAllBackups()">Delete all backups</button>
+			</div>
+		</div>
+		<div id="backup-body">
+			<a>Your backups</a>
+			<div id="backups"></div>
+		</div>
+	</body>
+</html>

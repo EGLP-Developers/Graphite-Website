@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/templates.css">
+		<link rel="stylesheet" href="css/backups.css">
+		
+		<script>
+			var globalTemplates = {};
+			var templates = [];
+
+			var selected = [...RestoreSelector.values()];
+	
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('BACKUPS')) return;
+				if(!checkModuleEnabled('BACKUPS')) return;
+
+				templates = await TempBackup.getTempBackups();
+
+				templates.sort(function(a, b) {
+					var upvotesA = a.getUpvotes();
+					var upvotesB = b.getUpvotes();
+					if (upvotesA > upvotesB) return -1;
+					if (upvotesA < upvotesB) return 1;
+					return 0;
+				});
+
+				let tL = document.getElementById("templates");
+				let i = 0;
+				for(let template of templates){
+					globalTemplates[template.getID()] = template;
+					templateItem(template.getID()).then(e => {
+						tL.appendChild(e);
+						i++;
+						if(i > 20) e.style.display = "none";
+					});
+				}
+
+				if(templates.length > 0){
+					let loadMoreBtn = document.createElement("button");
+					loadMoreBtn.id = "load-more";
+					loadMoreBtn.innerText = "Load more templates"
+					let ctn = document.getElementById("tCon");
+					ctn.appendChild(loadMoreBtn);
+				
+					$(loadMoreBtn).on('click', function (e) {
+						e.preventDefault();
+						$(".template-item:hidden").slice(0, 20).slideDown();
+						if ($(".template-item:hidden").length == 0) {
+							$(loadMoreBtn).fadeOut('slow');
+						}
+						$('#contentC-container').animate({
+							scrollTop: $(this).offset().top
+						}, 1500);
+					});
+				}
+			});
+
+			async function templateItem(templateID){
+				let template = globalTemplates[templateID];
+				let countUpvotes = template.getUpvotes();
+				let upvoted = await TempBackup.hasUpvotedTemplateByID(templateID, user.getID());
+
+				let item = document.createElement("div");
+				item.classList.add("template-item");
+				item.id = templateID;
+				item.addEventListener('click', () => templatePreview(templateID));
+
+				let name = document.createElement("a");
+				name.text = template.getName();
+				name.classList.add("template-name");
+				item.appendChild(name);
+
+				let styleUpvoted = () => {
+					upvotes.style.border = upvoted ? "1px solid var(--green)" : "1px solid var(--semi-white)";
+					upvotes.style.color = upvoted ? "var(--green)" : "var(--semi-white)";
+				}
+
+				let upvotes = document.createElement("a");
+				upvotes.classList.add("template-upvotes");
+				styleUpvoted();
+				upvotes.text = "▲ " + (countUpvotes > 999 ? "999+" : countUpvotes);
+				upvotes.addEventListener('click', async (event) => {
+					event.stopPropagation();
+					await TempBackup.upvoteTemplateBackupByID(templateID);
+					upvoted ? countUpvotes-- : countUpvotes++;
+					upvotes.text = "▲ " + (countUpvotes > 999 ? "999+" : countUpvotes);
+					upvoted = !upvoted;
+					styleUpvoted();
+				});
+				name.appendChild(upvotes);
+
+				let description = document.createElement("a");
+				description.text = (template.getDescription() == "" ? "None" : template.getDescription());
+				description.classList.add("template-description");
+				item.appendChild(description);
+
+				return item;
+			}
+
+			async function getTemplateBackupChannels(templateID){
+				let template = globalTemplates[templateID];
+
+				let cData = await TempBackup.getTemplateBackupChannelsData(templateID);
+
+				let channels = document.createElement("div");
+				channels.id = "backup-channels";
+
+				for(let textchannel of cData.getTextChannels()) {
+					let t = document.createElement("a");
+					t.classList.add("backup-textchannel");
+					t.style.order = textchannel.getPosition();
+					t.text = textchannel.getName();
+					channels.appendChild(t);
+				}
+
+				for(let newschannel of cData.getNewsChannels()) {
+					let t = document.createElement("a");
+					t.classList.add("backup-textchannel");
+					t.style.order = newschannel.getPosition();
+					t.text = newschannel.getName();
+					channels.appendChild(t);
+				}
+
+				for(let voicechannel of cData.getVoiceChannels()) {
+					let t = document.createElement("a");
+					t.classList.add("backup-voicechannel");
+					t.style.order = voicechannel.getPosition();
+					t.text = voicechannel.getName();
+					channels.appendChild(t);
+				}
+
+				for(let stagechannel of cData.getStageChannels()) {
+					let t = document.createElement("a");
+					t.classList.add("backup-voicechannel");
+					t.style.order = stagechannel.getPosition();
+					t.text = stagechannel.getName();
+					channels.appendChild(t);
+				}
+
+				for(let category of cData.getCategories()){
+					let cat = document.createElement("div");
+					cat.classList.add("backup-category");
+					channels.appendChild(cat);
+
+					let catName = document.createElement("a");
+					catName.text = category.getName();
+					catName.classList.add("backup-category-name");
+					cat.appendChild(catName);
+
+					for(let textchannel of category.getTextChannels()){
+						let t = document.createElement("a");
+						t.classList.add("backup-textchannel");
+						t.style.order = textchannel.getPosition();
+						t.text = textchannel.getName();
+						cat.appendChild(t);
+					}
+
+					for(let newschannel of category.getNewsChannels()){
+						let t = document.createElement("a");
+						t.classList.add("backup-textchannel");
+						t.style.order = newschannel.getPosition();
+						t.text = newschannel.getName();
+						cat.appendChild(t);
+					}
+
+					for(let voicechannel of category.getVoiceChannels()){
+						let t = document.createElement("a");
+						t.classList.add("backup-voicechannel");
+						t.style.order = voicechannel.getPosition();
+						t.text = voicechannel.getName();
+						cat.appendChild(t);
+					}
+
+					for(let stagechannel of category.getStageChannels()){
+						let t = document.createElement("a");
+						t.classList.add("backup-voicechannel");
+						t.style.order = stagechannel.getPosition();
+						t.text = stagechannel.getName();
+						cat.appendChild(t);
+					}
+				}
+
+				return channels;
+			}
+
+			async function getTemplateBackupRoles(templateID){
+				let template = globalTemplates[templateID];
+
+				let rData = await TempBackup.getTemplateBackupRolesData(templateID);
+
+				let roles = document.createElement("div");
+				roles.id = "backup-roles";
+
+				for(let role of rData.getRoles()){
+					let r = document.createElement("a");
+					r.style.border = "1px solid " + getHexColor(role.getColor());
+					r.text = role.getName();
+					roles.appendChild(r);
+				}
+
+				return roles;
+			}
+
+			async function templatePreview(templateID){
+				let template = globalTemplates[templateID];
+
+				let dynamicPreview = new DynamicSite();
+
+				dynamicPreview.addHeader(new DynamicSiteHeader()
+					.setTitle("Template")
+					.setSubtitle(template.getName()));
+
+				let f1 = new DynamicSiteField();
+				f1.setTitle("Channels & Roles");
+				await getTemplateBackupChannels(templateID).then(t => f1.addElement(t));
+				await getTemplateBackupRoles(templateID).then(t => f1.addElement(t));
+				f1.setStyle("flex-direction: row; justify-content: space-between;");
+				dynamicPreview.addField(f1);
+
+				let load = new UIButton("Load");
+				load.setStyle("background-color: var(--green);");
+				load.onInteract(() => {
+					loadTemplate(templateID);
+					addRequirementTooltips();
+				});
+
+				let report = new UIButton("Report");
+				report.setStyle("background-color: var(--red);");
+				report.onInteract(() => reportTemplate(templateID));
+
+				let btnField = new DynamicSiteEmptyField();
+
+				btnField.addUIElement(load);
+				btnField.addUIElement(report);
+
+				if(user.isAdmin() || template.getAuthorID() == user.getID()){
+					let del = new UIButton("Delete");
+					del.setStyle("background-color: var(--red);");
+					del.onInteract(() => deleteTemplate(templateID));
+					btnField.addUIElement(del);
+				}
+
+				btnField.setStyle("flex-direction: row;");
+				dynamicPreview.addField(btnField);
+			}
+
+			function searchTemplate(elem){
+				let con = document.getElementById("templates");
+				for(let child of con.children){
+					child.style.display = (child.getElementsByClassName("template-name")[0].text.toLowerCase().includes(elem.value.toLowerCase()) ? "flex" : "none");
+				}
+			}
+
+			function deleteTemplate(templateID){
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Delete template")
+					.setSubtitle("This action is irreversible! Are you sure?"));
+
+				let btnYes = new UIButton("Yes");
+				btnYes.setStyle("background-color: var(--red);");
+				btnYes.onInteract(() => {
+					TempBackup.deleteTemplateBackup(templateID);
+					let el = document.getElementById(templateID);
+					el.remove();
+					delete globalTemplates[templateID];
+					dialog.close();
+					removeOpenDynamicSites();
+				});
+
+				let btnNo = new UIButton("No");
+				btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+				btnNo.onInteract(() => dialog.close());
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(btnYes)
+					.addUIElement(btnNo)
+					.setStyle("flex-direction: row;"));
+
+				return dialog;
+			}
+
+			function reportTemplate(templateID){
+				let template = globalTemplates[templateID];
+
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Report: " + template.getName()));
+
+				let f1 = new DialogField();
+				f1.setTitle("Template");
+				let gName = new UIInput();
+				gName.setValue(template.getName())
+				gName.setAttribute("disabled", true);
+				f1.addUIElement(gName);
+				dialog.addField(f1);
+
+				let f2 = new DialogField();
+				f2.setTitle("Report reason");
+				let reason = new UITextInput();
+				f2.addUIElement(reason);
+				dialog.addField(f2);
+
+				let report = new UIButton("Report & Close");
+				report.setStyle("background-color: var(--red);");
+				report.onInteract(async () => {
+					await TempBackup.reportTemplateBackupByID(template.getID(), reason.getValue());
+					dialog.close();
+				});
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(report));
+
+				return dialog;
+			}
+
+			function loadTemplate(templateID){
+				let template = globalTemplates[templateID];
+
+				let dialog = new Dialog();
+
+				dialog.addHeader(new DialogHeader()
+					.setTitle("Load: " + template.getName()));
+
+				let f1 = new DialogField();
+				f1.setTitle("Important information before load");
+				f1.addUIElement(new UINote("Attention!", "We are NOT responsible for incomplete/corrupted backups!").red());
+				dialog.addField(f1);
+
+				if(!isAboveUserRoles){
+					let f2 = new DialogField();
+					let note = new UINote("Spooooky", "I can't interact with some roles. To work well, my role needs to be above all user roles.").red();
+					f2.addUIElement(note);
+					dialog.addField(f2);
+				}
+
+				let selector = RestoreSelector.values().filter(e => e.name() != "DISCORD_CHAT_HISTORY");
+
+				let fModeration = new DialogField();
+				fModeration.setTitle("Moderation settings");
+				selector.filter(val => val.name().startsWith("MODERATION")).forEach(f => {
+					let ch = new UICheckboxWithText();
+					ch.setText(f.getFriendlyName());
+					ch.setAttribute("data-id", f.name());
+					ch.getCheckboxInput().checked = true;
+					fModeration.addUIElement(ch);
+				});
+				dialog.addField(fModeration);
+
+				let fDiscord = new DialogField();
+				fDiscord.setTitle("Discord specified settings");
+				selector.filter(val => val.name().startsWith("DISCORD")).forEach(f => {
+					let ch = new UICheckboxWithText();
+					ch.setText(f.getFriendlyName());
+					ch.setAttribute("data-id", f.name());
+					ch.getCheckboxInput().checked = true;
+					fDiscord.addUIElement(ch);
+				});
+				dialog.addField(fDiscord);
+
+				let fOther = new DialogField();
+				fOther.setTitle("Other settings");
+				selector.filter(val => !val.name().startsWith("DISCORD") && !val.name().startsWith("MODERATION")).forEach(f => {
+					let ch = new UICheckboxWithText();
+					ch.setText(f.getFriendlyName());
+					ch.setAttribute("data-id", f.name());
+					ch.getCheckboxInput().checked = true;
+					fOther.addUIElement(ch);
+				});
+				dialog.addField(fOther);
+
+				let load = new UIButton("Load & Close");
+				load.setStyle("background-color: var(--green);");
+				load.onInteract(() => {
+					TempBackup.loadTemplateBackup(templateID, selected.map(r => r.name()));
+					dialog.close();
+				});
+
+				dialog.addField(new DialogEmptyField()
+					.addUIElement(load));
+
+				return dialog;
+			}
+
+			function addRequirementTooltips(){
+				let dialogBody = document.getElementsByClassName("dialog-background")[0];
+				let checkboxes = dialogBody.getElementsByClassName("ui-checkbox");
+				Array.from(checkboxes).forEach(checkbox => {
+					let v = RestoreSelector.valueOf(checkbox.getAttribute("data-id"));
+
+					if(v.getRequires().length != 0){
+						let tooltip = document.createElement("a");
+						tooltip.classList.add("tooltiptext");
+						tooltip.text += "Requires:\n";
+						tooltip.text += v.getRequires().map(r => r.getFriendlyName());
+						checkbox.parentElement.appendChild(tooltip);
+					}
+
+					checkbox.addEventListener('click', () => {
+						if(checkbox.checked) {
+							selected.push(v);
+						}else {
+							removeArrayElement(selected, v);
+						}
+
+						Array.from(checkboxes).forEach(ch => {
+							let r = RestoreSelector.valueOf(ch.getAttribute("data-id"));
+							let contained = selected.includes(r);
+							let missing = getMissingRequirements(r, selected);
+							ch.checked = contained && missing.length == 0;
+
+							if(missing.length != 0) {
+								ch.parentElement.setAttribute("disabled", true);
+							}else {
+								ch.parentElement.removeAttribute("disabled");
+							}
+						});
+					});
+				});
+			}
+
+			function getMissingRequirements(selector, selectors) {
+				let m = [];
+				for(let r of selector.getRequires()) {
+					if(!selectors.includes(r) || getMissingRequirements(r, selectors).length != 0) m.push(r);
+				}
+				return m;
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Templates</h1>
+				<a>Easly setup your Discord server with one click and a fancy template</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('BACKUPS')">Disable</a>
+		</div>
+		<div id="tCon">
+			<input placeholder="Search template..." oninput="searchTemplate(this)"></input>
+			<div id="templates"></div>
+		</div>
+	</body>
+</html>

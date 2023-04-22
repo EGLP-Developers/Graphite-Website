@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Graphite | Success</title>
+
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+		<link rel="icon" href="/img/graphite-raw.svg">
+		<link rel="stylesheet" href="css/defaults.css">
+		<link rel="stylesheet" href="css/success.css">
+		
+		<script src="./website-data/jquery-3.6.0.min.js"></script>
+		
+		<script>
+			$(() => {
+				let urlParams = new URLSearchParams(window.location.search);
+				let msg = urlParams.get('msg');
+
+				let doc = document.getElementById("success-content");
+				doc.text = msg == null ? "Nothing" : msg;
+			});
+		</script>
+	</head>
+	<body>
+		<header id="header">
+			<!--#include virtual="/header.html" -->
+		</header>
+		<main id="success">
+			<div id="success-center">
+				<img src="img/graphite-head.svg" alt="Success"/>
+				<h1>Success</h1>
+				<a id="success-content"></a>
+				<div id="actions">
+					<a href="/redirect/discord" target="_blank" rel="noopener"><img alt="Discord" src="img/discord.svg"/>Support server</a>
+					<a href="/">Home</a>
+				</div>
+			</div>
+		</main>
+		<footer id="footer">
+			<!--#include virtual="/footer.html" -->
+		</footer>
+	</body>
+</html>

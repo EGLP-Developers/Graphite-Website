@@ -1,0 +1,34 @@
+#snackbar {
+	visibility: hidden;
+	min-width: 250px;
+	max-width: 350px;
+	background-color: var(--green);
+	color: #fff;
+	border-radius: 3px;
+	padding: 15px;
+	position: fixed;
+	z-index: 9999;
+	right: 30px;
+	bottom: 30px;
+	font-size: 14px;
+}
+
+#snackbar.show {
+	visibility: visible;
+	-webkit-animation: fadein 0.5s;
+	animation: fadein 0.5s;
+}
+
+#snackbar.error{
+	background-color: var(--red);
+}
+
+@-webkit-keyframes fadein {
+	from {bottom: 0; opacity: 0;} 
+	to {bottom: 30px; opacity: 1;}
+}
+
+@keyframes fadein {
+	from {bottom: 0; opacity: 0;}
+	to {bottom: 30px; opacity: 1;}
+}

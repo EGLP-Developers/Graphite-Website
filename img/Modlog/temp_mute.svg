@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g id="iconfinder-icon-1-.svg" serif:id="iconfinder-icon(1).svg" transform="matrix(0.103526,0,0,0.103526,19.0308,18.9692)">
+        <g transform="matrix(1,0,0,1,-48,-48)">
+            <clipPath id="_clip1">
+                <rect x="0" y="0" width="96" height="96"/>
+            </clipPath>
+            <g clip-path="url(#_clip1)">
+                <g>
+                    <rect id="canvas_background" x="-1" y="-1" width="582" height="402" style="fill:none;"/>
+                </g>
+                <g>
+                    <path id="svg_1" d="M48,4C23.7,4 4,23.7 4,48C4,72.301 23.7,92 48,92C72.301,92 92,72.301 92,48C92,23.7 72.301,4 48,4ZM48,84C28.118,84 12,67.882 12,48C12,28.118 28.118,12 48,12C67.882,12 84,28.118 84,48C84,67.882 67.882,84 48,84Z" style="fill:white;fill-rule:nonzero;"/>
+                    <path id="svg_2" d="M52,46.343L52,24C52,21.791 50.209,20 48,20C45.791,20 44,21.791 44,24L44,48C44,48.009 44.003,48.018 44.003,48.027C44.004,48.28 44.029,48.533 44.079,48.782C44.103,48.905 44.148,49.016 44.183,49.136C44.222,49.268 44.252,49.402 44.305,49.531C44.363,49.669 44.441,49.795 44.513,49.925C44.567,50.025 44.61,50.125 44.673,50.22C44.82,50.441 44.987,50.648 45.174,50.833L56.485,62.145C58.047,63.707 60.582,63.707 62.143,62.145C63.705,60.583 63.705,58.048 62.143,56.489L52,46.343L52,46.343Z" style="fill:white;fill-rule:nonzero;"/>
+                </g>
+            </g>
+        </g>
+    </g>
+    <g transform="matrix(0.792199,0,0,0.792199,0,-0.0127877)">
+        <rect x="0" y="0" width="24" height="24" style="fill:none;"/>
+        <rect x="0" y="0" width="24" height="24" style="fill:none;"/>
+        <g id="mute.svg" transform="matrix(1,0,0,1,12,11.9385)">
+            <g transform="matrix(1,0,0,1,-12,-12)">
+                <rect x="0" y="0" width="24" height="24" style="fill:none;fill-rule:nonzero;"/>
+                <path d="M14,8.83L14,15.17L11.83,13L9,13L9,11L11.83,11L14,8.83M16,4L11,9L7,9L7,15L11,15L16,20L16,4Z" style="fill:white;fill-rule:nonzero;"/>
+            </g>
+        </g>
+    </g>
+</svg>

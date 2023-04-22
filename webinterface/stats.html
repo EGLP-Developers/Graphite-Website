@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/stats.css">
+		
+		<script>
+			var statsSettings = {};
+			var settings;
+
+			var chartElements = [];
+			var appliedStatistics = [];
+
+			var previewField;
+
+			var dynamicSite;
+
+			finished(async() => {
+				if(!checkFeatureEnabled('MODERATION')) return;
+				if(!checkModuleEnabled('MODERATION')) return;
+
+				let st = document.getElementById("statistics");
+				let statistics = await StatisticsElement.getStatisticElements();
+				for(let statistic of statistics){
+					st.appendChild(statisticElement(statistic));
+					statsSettings[statistic.getID()] = statistic.getSettings();
+				}
+			});
+
+			function statisticElement(statistic){
+				let item = document.createElement("div");
+				item.classList.add("statistic-item");
+				item.id = statistic.getID();
+				item.addEventListener('click', () => addChart(statistic));
+
+				generateStatisticsElementPreview(null, statistic.getType(), statistic.getSettings()).then(img => {
+					item.appendChild(img);
+				});
+
+				let ac = document.createElement("div");
+				ac.classList.add("statistic-actions");
+				item.appendChild(ac);
+
+				let id = document.createElement("a");
+				id.classList.add("statistics-element-channel");
+				let channel = textchannels.find(c => c.getID() == statistic.getChannelID());
+				id.text = "#" + (channel == null ? "-" : channel.getName());
+				ac.appendChild(id);
+
+				let del = document.createElement("img");
+				del.addEventListener('click', () => {
+					event.stopPropagation();
+
+					let dialog = new Dialog();
+
+					dialog.addHeader(new DialogHeader()
+						.setTitle("Delete statistic")
+						.setSubtitle("This action is irreversible! Are you sure?"));
+
+					let btnYes = new UIButton("Yes");
+					btnYes.setStyle("background-color: var(--red);");
+					btnYes.onInteract(() => {
+						StatisticsElement.removeStatisticElement(statistic.getID());
+						item.remove();
+						dialog.close();
+					});
+
+					let btnNo = new UIButton("No");
+					btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+					btnNo.onInteract(() => dialog.close());
+
+					dialog.addField(new DialogEmptyField()
+						.addUIElement(btnYes)
+						.addUIElement(btnNo)
+						.setStyle("flex-direction: row;"));
+				});
+				del.setAttribute("src", "../img/trash.svg");
+				ac.appendChild(del);
+
+				return item;
+			}
+
+			async function addChart(statisticsElement){
+				let statisticsElementChannel = (statisticsElement != null && statisticsElement.getChannelID() != null ? statisticsElement.getChannelID() : null);
+				let selectedChartType;
+
+				if(statisticsElement == null){
+					settings = await StatisticsElementType.createDefaultSettings(StatisticsElementType.values()[0].name());
+				}else{
+					settings = statsSettings[statisticsElement.getID()];
+				}
+
+				dynamicSite = new DynamicSite();
+				
+				dynamicSite.addHeader(new DynamicSiteHeader()
+					.setTitle("Add chart"));
+
+				let chartTypeField = new DynamicSiteField();
+				chartTypeField.setTitle("Chart type");
+				let chartTypeDropdown = new UIDropdown();
+				Array.from(StatisticsElementType.values()).forEach(el => {
+					let name = el.name().replace("_", " ").toLowerCase();
+					let i = new UIDropdownElement();
+					i.addText(name);
+					i.setAttribute("value", el.name());
+					i.onInteract(async () => {
+						selectedChartType = el.name();
+						dynamicSite.removeFields(2, settings.descriptors.length+1);
+						settings = await StatisticsElementType.createDefaultSettings(el.name());
+						dynamicSite.reloadSettingsDescriptors(settings, () => {
+							generateStatisticsElementPreview(previewField, el, getGlobalSettings());
+						});
+						previewField = new DynamicSiteField();
+						previewField.setTitle("Preview");
+						dynamicSite.addFieldAtIndex(previewField, settings.descriptors.length+3);
+					});
+					chartTypeDropdown.addUIElement(i);
+				});
+				if(statisticsElement != null) {
+					chartTypeDropdown.findElementByAttribute("value", statisticsElement.getType().name(), (element) => selectedChartType = element.getAttribute("value"));
+				}else{
+					chartTypeDropdown.selectFirst((element) => selectedChartType = element.getAttribute("value"));
+				}
+				chartTypeField.addUIElement(chartTypeDropdown);
+				dynamicSite.addField(chartTypeField);
+
+				let cF = new DynamicSiteField();
+				cF.setTitle("Message channel");
+				let channels = new UIDropdown();
+				channels.setPlaceholder("Select stats channel...");
+				channels.addTextChannels((textchannel, element) => statisticsElementChannel = textchannel.getID());
+				channels.addNewsChannels((newschannel, element) => statisticsElementChannel = newschannel.getID());
+				if(statisticsElement && statisticsElement.getChannelID() != null) channels.findElementByAttribute("value", statisticsElement.getChannelID());
+				cF.addUIElement(channels);
+				dynamicSite.addFieldAtIndex(cF, 2);
+
+				dynamicSite.fromSettings(settings, () => {
+					let type = StatisticsElementType.valueOf(selectedChartType);
+					generateStatisticsElementPreview(previewField, type, getGlobalSettings());
+				});
+
+				previewField = new DynamicSiteField();
+				previewField.setTitle("Preview");
+				dynamicSite.addFieldAtIndex(previewField, settings.descriptors.length+3);
+
+				if(statisticsElement != null) generateStatisticsElementPreview(previewField, statisticsElement.getType(), statisticsElement.getSettings());
+
+				let btn = new UIButton();
+				btn.setText(statisticsElement == null ? "Add" : "Apply");
+				btn.setStyle("background-color: var(--green);");
+				btn.onInteract(async () => {
+					if(statisticsElementChannel == null){
+						showAlert("You need to set a message channel", true);
+						return;
+					}
+
+					let type = StatisticsElementType.valueOf(selectedChartType);
+
+					if(statisticsElement != null){
+						StatisticsElement.updateStatisticsElementSettings(statisticsElement.getID(), getGlobalSettings(), statisticsElementChannel);
+						statsSettings[statisticsElement.getID()] = getGlobalSettings();
+
+						let item = document.getElementById(statisticsElement.getID());
+						generateStatisticsElementPreview(null, type, statsSettings[statisticsElement.getID()]).then(img => {
+							item.replaceChild(img, item.lastChild);
+						});
+						if(statisticsElement.getChannelID() != statisticsElementChannel){
+							let textchannel = textchannels.find(c => c.getID() == statisticsElementChannel);
+							let channel = item.getElementsByClassName("statistics-element-channel")[0];
+							channel.text = "Channel: #" + textchannel.getName();
+						}
+					}else{
+						let st = document.getElementById("statistics");
+						let el = await StatisticsElement.createStatisticsElement(type, getGlobalSettings(), statisticsElementChannel);
+						statsSettings[el.getID()] = el.getSettings();
+						el.setChannelID(statisticsElementChannel);
+						st.appendChild(statisticElement(el));
+					}
+
+					dynamicSite.close();
+				});
+
+				dynamicSite.addField(new DynamicSiteEmptyField()
+					.addUIElement(btn));
+			}
+
+			function changeChartType() {
+				dynamicSite.removeFields(1, settings.descriptors.length);
+				dynamicSite.reloadSettingsDescriptors(settings, () => {
+					generateStatisticsElementPreview(previewField, el, getGlobalSettings());
+				});
+			}
+
+			async function generateStatisticsElementPreview(field, type, settings){
+				let resp = await StatisticsElement.generateStatisticsPreview(type, settings);
+
+				let img = document.createElement("img");
+				img.classList.add("statistic-preview-image");
+				img.src = "data:image/png;base64," + resp.image;
+
+				if(field != null){
+					field.purgeFieldElements();
+					field.addElement(img);
+				}
+
+				return img;
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Stats</h1>
+				<a>Show your growth</a>
+            </div>
+            <div>
+                <a class="disable-module" onclick="disableModule('MODERATION')">Disable</a>
+            </div>
+        </div>
+		<div id="available-counters">
+			<a id="add-counter" onclick="addChart()">Add chart</a>
+			<div id="statistics"></div>
+		</div>
+	</body>
+</html>

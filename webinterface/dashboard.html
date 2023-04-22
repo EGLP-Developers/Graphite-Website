@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/dashboard.css">
+		
+		<script>
+			var timezone;
+			var timezoneIds = [];
+			var avatar;
+
+			finished(async() => {
+				//ADMIN CHECK
+				if(!isGuildAdmin) {
+					$("#box-settings").remove();
+					$("#box-users").remove();
+					$("#box-modules").remove();
+
+					let cCon = document.getElementById("content-container");
+					let unavailable = document.createElement("div");
+					unavailable.id = "unavailable";
+
+					let text = document.createElement("h1");
+					text.innerText = "YOU DON'T HAVE ACCESS TO THIS TAB";
+					unavailable.appendChild(text);
+
+					cCon.appendChild(unavailable);
+					return;
+				}
+
+				//LOAD SETTINGS
+
+				timezone = await Settings.getTimezone();
+				timezoneIds = await Settings.getAvailableZoneIds();
+				avatar = await settings.getBot().getAvatarURL();
+
+				loadBotAvatar();
+				loadPrefix();
+				loadNickname();
+				loadLocale();
+				loadTimezone();
+
+				//LOAD MODULES
+
+				loadModules();
+
+				//LOAD LOGGED IN USERS
+
+				if(loggedIn.length == 0 || !isGuildOwner) $("#box-users").hide();
+				loggedInUsers();
+			});
+
+			//USERS
+			function loggedInUsers(){
+				if(!isGuildOwner) return;
+
+				let box = document.getElementById("box-users");
+
+				for(let user of loggedIn){
+					let item = document.createElement("div");
+					item.classList.add("user-item");
+
+					item.addEventListener('click', () => {
+						let dialog = new Dialog();
+
+						dialog.addHeader(new DialogHeader()
+							.setTitle("Kick " + user.getName()));
+
+						let btnYes = new UIButton("Yes");
+						btnYes.setStyle("background-color: var(--green);");
+						btnYes.onInteract(() => {
+							Bot.kickWIUser(user.getID());
+							item.remove();
+							dialog.close();
+						});
+
+						let btnNo = new UIButton("No");
+						btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+						btnNo.onInteract(() => dialog.close());
+
+						dialog.addField(new DialogEmptyField()
+							.addUIElement(btnYes)
+							.addUIElement(btnNo)
+							.setStyle("flex-direction: row;"));
+					});
+
+					let uName = document.createElement("a");
+					uName.classList.add("user-name");
+					uName.text = user.getName();
+					item.appendChild(uName);
+
+					box.appendChild(item);
+				}
+			}
+
+			//MODULES
+
+			function loadModules(){
+				let moduleDiv = document.getElementById("box-modules");
+				let mdl = document.getElementById("modules");
+
+				if(enabledFeatures.some(feature => feature.name().toLowerCase() == "modules")){
+					for(let module of modules) mdl.appendChild(moduleItem(module));
+				}else{
+					moduleDiv.remove();
+				}
+			}
+
+			function moduleItem(module){
+				let item = document.createElement("div");
+				item.classList.add("module-item");
+
+				let mName = document.createElement("a");
+				mName.classList.add("module-name");
+				mName.text = module.getName();
+				item.appendChild(mName);
+
+				let checkbox = new UICheckbox();
+				checkbox.onInteract(() => {
+					let mID = module.getID();
+					let navigationItems = document.getElementsByClassName("navigation-item");
+					let filteredNavigationItems = Array.from(navigationItems).filter(i => i.getAttribute("module") != null && i.getAttribute("module").toUpperCase() == mID);
+					
+					filteredNavigationItems.forEach(item => {
+						if(module.isEnabled()){
+							item.setAttribute("disabled", true);
+						}else{
+							item.removeAttribute("disabled");
+						}
+					});
+
+					if(module.isEnabled()){
+						Module.disableModule(mID);
+						module.enabled = false;
+					}else{
+						Module.enableModule(mID);
+						module.enabled = true;
+					}
+				}).build();
+				checkbox.getCheckboxInput().checked = module.isEnabled();
+				item.appendChild(checkbox.build());
+
+				return item
+			}
+
+			//BOT AVATAR
+
+			function loadBotAvatar(){
+				let img = document.getElementById("bot-icon");
+				img.src = avatar;
+			}
+
+			//PREFIX
+
+			function loadPrefix(){
+				let input = document.getElementById("prefix");
+				input.value = settings.getPrefix();
+			}
+
+			function setPrefix(){
+				let input = document.getElementById("prefix");
+
+				if(input.value.length == 0){
+					input.value = "-";
+					Settings.setPrefix(botIdentifier, "");
+					input.blur();
+					return;
+				}
+
+				Settings.setPrefix(botIdentifier, input.value);
+				input.blur();
+			}
+
+			//NICKNAME
+
+			function loadNickname(){
+				let input = document.getElementById("nickname");
+				input.value = settings.getNickname();
+			}
+
+			function setNickname(){
+				let input = document.getElementById("nickname");
+
+				if(input.value.length == 0){
+					input.value = "-";
+					Settings.setNickname(botIdentifier, "");
+					input.blur();
+					return;
+				}
+
+				Settings.setNickname(botIdentifier, input.value);
+				input.blur();
+			}
+
+			//LOCALE
+
+			function loadLocale(){
+				let input = document.getElementById("locale");
+				input.value = settings.getLocale();
+			}
+
+			function setLocale(){
+				let input = document.getElementById("locale");
+				if(!settings.locales.includes(input.value)){
+					showAlert("Bot locale can't be set to " + input.value, true);
+					return;
+				}
+				Settings.setLocale(botIdentifier, input.value);
+				input.blur();
+			}
+
+			//TIMEZONE
+
+			function loadTimezone(){
+				let input = document.getElementById("timezone");
+				input.value = timezone;
+			}
+
+			function setTimezone(){
+				let input = document.getElementById("timezone");
+
+				if(input.value.lenght == 0){
+					let defaultTimezone = timezoneIds.find(id => id == "UTC");
+					input.value = defaultTimezone;
+					Settings.setTimezone(defaultTimezone);
+					input.blur();
+					return;
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div id="box-settings">
+			<h1>Settings</h1>
+			<a>Customize the nickname, change the prefix or switch your time zone. By let the input fields empty it will be reset to its default value.</a>
+			<div id="bot-settings-outer">
+				<img id="bot-icon" alt="" src="//img/graphite-raw.svg"/>
+				<div id="bot-settings-inner">
+					<div class="settings-item">
+						<a>Text command prefix</a>
+						<a>Choose a unique prefix.</a>
+						<input id="prefix" onchange="setPrefix()"/>
+					</div>
+					<div class="settings-item">
+						<a>Nickname</a>
+						<a>Is Graphite now called bernd? Who knows.</a>
+						<input id="nickname" onchange="setNickname()"/>
+					</div>
+					<div class="settings-item">
+						<a>Bot locale</a>
+						<a>Do you speak german? (de/en/tr)</a>
+						<input id="locale" onchange="setLocale()"/>
+					</div>
+					<div class="settings-item">
+						<a>Timezone</a>
+						<a>Change your timezone</a>
+						<input id="timezone" disabled></input>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="box-users">
+			<h1>Logged in users</h1>
+			<a>All users that are currently logged in onto your guild's webinterface. Only you as the owner of the guild can see this list.</a>
+			<div id="users"></div>
+		</div>
+		<div id="box-modules">
+			<h1>Modules</h1>
+			<a>By enabling/disabling modules you can control which features are available to you</a>
+			<div id="modules"></div>
+		</div>
+	</body>
+</html>

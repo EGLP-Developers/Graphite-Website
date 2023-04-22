@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Graphite | Block Script</title>
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+		<script src="./website-data/globals.js"></script>
+		<script>
+			finished(async () => {
+				let params = new URLSearchParams(window.location.search);
+				let guild = params.get("guild");
+				if(guild == null) {
+					window.location.href = "/";
+					return;
+				}
+				await User.blockScripts(guild);
+				window.location.href = "/success?msg=Successfully blocked the guild";
+			}, window.location.toString());
+		</script>
+	</head>
+</html>

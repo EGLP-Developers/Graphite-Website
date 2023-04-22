@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Graphite | Webinterface</title>
+
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+		<meta content="utf-8" http-equiv="encoding">
+		<meta name="keywords" content="graphite,bot,discord,discordbot,rpg,minigames,moderation,fun,automoderation,discord bot,discord music bot,music bot,multipurpose bot,discord bot command">
+		<meta name="description" content="Set up Twitch, moderation, fun, role-management and music features.">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+		<link rel="icon" href="/img/graphite-raw.svg">
+		<link rel="stylesheet" href="css/defaults.css">
+		<link rel="stylesheet" href="css/webinterface.css">
+
+		<script src="./website-data/jquery-3.6.0.min.js"></script>
+		
+		<script>
+			function loadServer(){
+				finished(async() => {
+					let guilds = await WebinterfaceGuild.getPermittedGuilds();
+					let guildsCon = document.getElementById("server");
+					let dataFetch = document.getElementById("data-fetch");
+
+					guilds.sort(function(a, b) {
+						var nameA = a.getName().toLowerCase();
+						var nameB = b.getName().toLowerCase();
+						if (nameA < nameB) return -1;
+						if (nameA > nameB) return 1;
+						return 0;
+					});
+
+					for(let guild of guilds){
+						let i = document.createElement("div");
+						i.classList.add("server-item");
+						i.addEventListener('click', () => {
+							changeServer(guild.getID());
+						});
+
+						if(guild.getIconURL() != null){
+							let img = document.createElement("img");
+							img.src = guild.getIconURL() + "?size=32";
+							i.appendChild(img);
+						}else{
+							let imgPlc = document.createElement("a");
+							imgPlc.classList.add("no-icon");
+							imgPlc.text = guild.getName()[0];
+							i.appendChild(imgPlc);
+						}
+
+						let name = document.createElement("a");
+						name.classList.add("server-name");
+						name.text = guild.getName();
+						i.appendChild(name);
+
+						guildsCon.appendChild(i);
+					}
+
+					dataFetch.remove();
+				});
+			}
+
+			function changeServer(sID){
+				let promise = Bot.isOnServer(sID);
+				promise.then(function(response) {
+					if(response) {
+						window.document.location.href = "/webinterface/base?server=" + sID;
+					}else {
+						window.document.location.href = "https://discord.com/oauth2/authorize?client_id=355050503459045378&scope=bot&permissions=8&guild_id=" + sID;
+					}
+				});
+			}
+		</script>
+	</head>
+	<body>
+		<header id="header">
+			<!--#include virtual="/header.html" -->
+		</header>
+		<main id="webinterface">
+			<div id="webinterface-center">
+				<div id="head">
+					<h1>Select server</h1>
+					<a>By adding Graphite or a Multiplex bot to your server you automatically accept our Privacy Policy. If you need any help feel free to join our discord</a>
+					<a id="support-server" href="/redirect/discord"><img src="img/discord.svg" alt=""/>Support Server</a>
+				</div>
+				<a id="data-fetch">Collecting servers...</a>
+				<div id="server"></div>
+			</div>
+		</main>
+		<script>
+			loadServer();
+		</script>
+		<footer id="footer">
+			<!--#include virtual="/footer.html" -->
+		</footer>
+	</body>
+</html>

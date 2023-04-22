@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<link rel="stylesheet" href="css/twitch.css">
+		
+		<script>
+			var defaultMessage;
+			var streamer = [];
+			var globalStreamer = {};
+			var selectedChannel = null;
+			var parameters = [];
+			var defaultEmbedColor = "#6441a5";
+			var strContainer = document.getElementById("streamer");
+
+			baseLoaded(async() => {
+				if(!checkFeatureEnabled('TWITCH')) return;
+				if(!checkModuleEnabled('TWITCH')) return;
+
+				defaultMessage = await TwitchUser.getDefaultTwitchNotificationMessage();
+				streamer = await TwitchUser.getTwitchStreamers();
+				parameters = TwitchAnnouncementParameter.values();
+
+				for(let str of streamer){
+					globalStreamer[str.getID()] = str;
+					strContainer.appendChild(streamerItem(str));
+				}
+
+			});
+
+			function streamerItem(str){
+				let strItem = document.createElement("div");
+				strItem.classList.add("streamer-item");
+				strItem.id = str.getID();
+				strItem.addEventListener('click', () => applyStreamer(str.getID()));
+
+				let strImage = document.createElement("img");
+				strImage.setAttribute("src", str.getProfileImageURL());
+				strItem.appendChild(strImage);
+
+				let content = document.createElement("div");
+				content.classList.add("streamer-content");
+				strItem.appendChild(content);
+
+				let name = document.createElement("a");
+				name.classList.add("streamer-name");
+				name.innerText = str.getName();
+				name.href = "https://www.twitch.tv/" + str.getName();
+				name.target = "_blank";
+				name.addEventListener('click', () => event.stopPropagation());
+				content.appendChild(name);
+
+				let channel = document.createElement("a");
+				let tc = textchannels.find(t => t.getID() == str.getNotificationChannel());
+				channel.text = (tc != null ? tc.getName() : "");
+				content.appendChild(channel);
+
+				let actions = document.createElement("div");
+				actions.classList.add("streamer-actions");
+				strItem.appendChild(actions);
+
+				/*Maybe add 3024
+				
+				if(str.isLive()){
+					let renotify = document.createElement("a");
+					renotify.text = "Renotify";
+					renotify.addEventListener('click', () => {
+						event.stopPropagation();
+						
+						let dialog = new Dialog();
+
+						dialog.addHeader(new DialogHeader()
+							.setTitle("Renotify user")
+							.setSubtitle("Resend a new notification to notify new member that this streamer is currently streaming"));
+
+						let btnYes = new UIButton("Yes");
+						btnYes.setStyle("background-color: var(--green);");
+						btnYes.onInteract(() => {
+							TwitchUser.sendTwitchAnnouncement(str.getID());
+							dialog.close();
+							showAlert("Announcement send");
+						});
+
+						let btnNo = new UIButton("No");
+						btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+						btnNo.onInteract(() => dialog.close());
+
+						dialog.addField(new DialogEmptyField()
+							.addUIElement(btnYes)
+							.addUIElement(btnNo)
+							.setStyle("flex-direction: row;"));
+					});
+					actions.appendChild(renotify);
+				}*/
+
+				let delImage = document.createElement("img");
+				delImage.setAttribute("src", "../img/trash.svg");
+				delImage.addEventListener('click', async () => {
+					event.stopPropagation();
+						
+					let dialog = new Dialog();
+
+					dialog.addHeader(new DialogHeader()
+						.setTitle("Remove streamer")
+						.setSubtitle("This action is irreversible! Are you sure?"));
+
+					let btnYes = new UIButton("Yes");
+					btnYes.setStyle("background-color: var(--red);");
+					btnYes.onInteract(() => {
+						TwitchUser.removeTwitchStreamer(str.getID());
+						delete globalStreamer[str.getID()];
+						strItem.remove();
+						dialog.close();
+						showAlert("Streamer removed");
+					});
+
+					let btnNo = new UIButton("No");
+					btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
+					btnNo.onInteract(() => dialog.close());
+
+					dialog.addField(new DialogEmptyField()
+						.addUIElement(btnYes)
+						.addUIElement(btnNo)
+						.setStyle("flex-direction: row;"));
+				});
+				actions.appendChild(delImage);
+
+				return strItem;
+			}
+
+			function applyStreamer(strID){
+				let dynamicSite = new DynamicSite();
+
+				let channelDropdown = new UIDropdown()
+					.addTextChannels((textchannel, element) => selectedChannel = textchannel.getID())
+					.addNewsChannels((newschannel, element) => selectedChannel = newschannel.getID())
+					.selectFirst((element) => selectedChannel = element.getAttribute("value"));
+
+				dynamicSite.addHeader(new DynamicSiteHeader()
+					.setTitle("Add streamer")
+					.onSave(async () => {
+						let streamerInput = document.getElementById("streamer-input");
+						let embedColor = document.getElementById("ui-color-picker-input");
+						let message = document.getElementById("message");
+						let parameterElements = Array.from(document.getElementsByClassName("ui-checkbox"));
+						let params = [];
+
+						if(checkCondition(streamerInput.value.trim().length == 0, "Please enter a streamer")) return;
+						if(checkCondition(!/^[a-zA-Z0-9][\w]{3,24}$/.test(streamerInput.value), "Invalid streamer name")) return;
+						if(checkCondition(selectedChannel == null, "Please select a notification channel")) return;
+						if(checkCondition(!isValidHexColor(embedColor.value), "Invalid color")) return;
+						if(checkCondition(message.value.trim().length == 0, "Please add some notification content")) return;
+
+						let dataID = streamerInput.getAttribute("data-id");
+
+						let streamer = (dataID == null ? await TwitchUser.addTwitchStreamer(streamerInput.value, selectedChannel) : globalStreamer[dataID]);
+						if(streamer == null) return;
+						if(dataID == null) streamer = (globalStreamer[streamer.getID()] = streamer);
+
+						streamer.setNotificationMessage(message.value);
+						streamer.setNotificationChannel(selectedChannel);
+						streamer.setColor(hexToDecimal(embedColor.value));
+						parameterElements.filter(e => e.checked).forEach(e => {
+							let el = parameters.find(el => el.name() == e.getAttribute("value"));
+							if(el != null) params.push(el);
+						});
+						streamer.setParameters(params);
+
+						TwitchUser.updateTwitchStreamer(streamer);
+
+						if(dataID != null){
+							let el = document.getElementById(dataID);
+							strContainer.replaceChild(streamerItem(streamer), el);
+						}else{
+							strContainer.appendChild(streamerItem(streamer));
+						}
+
+						dynamicSite.close();
+						showAlert(dataID == null ? "Successfully added streamer" : "Successfully edit streamer");
+					}));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Streamer")
+					.setSubtitle("About which streamer we should notify you")
+					.addUIElement(new UIInput()
+						.setID("streamer-input")
+						.setPlaceholder("Please enter a streamer...")));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Notification channel")
+					.addUIElement(channelDropdown));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Embed color")
+					.addUIElement(new UIColorPicker()
+						.setValue(defaultEmbedColor)));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Notification message")
+					.setSubtitle("Valid options: {streamer}, {link}")
+					.addUIElement(new UITextInput()
+						.setID("message")
+						.setValue(defaultMessage)));
+
+				dynamicSite.addField(new DynamicSiteField()
+					.setTitle("Additional options")
+					.setSubtitle("Which information should be shown")
+					.addUIElements(parameters.map(parameter => {
+						let el = new UICheckboxWithText();
+						el.setText(parameter.getFriendlyName());
+						let inp = el.getCheckboxInput();
+						el.setAttribute("value", parameter.name());
+						inp.checked = parameter.show();
+						return el;
+					})));
+
+				
+
+				if(strID){
+					let streamerInput = document.getElementById("streamer-input");
+					let embedColor = document.getElementById("ui-color-picker-input");
+					let embedColorLabel = document.getElementById("ui-color-picker-label");
+					let message = document.getElementById("message");
+					let parameterElements = document.getElementsByClassName("ui-checkbox");
+
+					let streamer = globalStreamer[strID];
+
+					streamerInput.value = streamer.getName();
+					streamerInput.setAttribute("data-id", streamer.getID());
+					streamerInput.setAttribute("disabled", true);
+
+					channelDropdown.findElementByAttribute("value", streamer.getNotificationChannel());
+					selectedChannel = streamer.getNotificationChannel();
+
+					message.value = streamer.getNotificationMessage();
+
+					embedColor.value = getHexColor(streamer.getColor());
+					embedColorLabel.style.borderLeft = "5px solid " + embedColor.value;
+
+					for(let parameter of parameterElements){
+						parameter.checked = streamer.getParameters().some(e => e.name() == parameter.getAttribute("value"));
+					}
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div class="module-header">
+			<div class="module-text">
+				<h1>Twitch</h1>
+				<a>Get notified if one or more of your favorite streamer(s) go live</a>
+			</div>
+			<a class="disable-module" onclick="disableModule('TWITCH')">Disable</a>
+		</div>
+		<div id="add-channel">
+			<a>By adding more channels Graphite will send a message in a pre-defined channel of your choice</a>
+			<button onclick="applyStreamer()">Add channel</button>
+		</div>
+		<div id="added-channels">
+			<a>Streamer</a>
+			<div id="streamer"></div>
+		</div>
+	</body>
+</html>
