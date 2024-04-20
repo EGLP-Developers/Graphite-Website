@@ -6,7 +6,6 @@
 		<script>
 			var timezone;
 			var timezoneIds = [];
-			var avatar;
 
 			finished(async() => {
 				//ADMIN CHECK
@@ -31,9 +30,7 @@
 
 				timezone = await Settings.getTimezone();
 				timezoneIds = await Settings.getAvailableZoneIds();
-				avatar = await settings.getBot().getAvatarURL();
 
-				loadBotAvatar();
 				loadPrefix();
 				loadNickname();
 				loadLocale();
@@ -53,7 +50,7 @@
 			function loggedInUsers(){
 				if(!isGuildOwner) return;
 
-				let box = document.getElementById("box-users");
+				let box = document.getElementById("bot-users");
 
 				for(let user of loggedIn){
 					let item = document.createElement("div");
@@ -95,14 +92,10 @@
 			//MODULES
 
 			function loadModules(){
-				let moduleDiv = document.getElementById("box-modules");
+				let moduleDiv = document.getElementById("bot-modules");
 				let mdl = document.getElementById("modules");
-
-				if(enabledFeatures.some(feature => feature.name().toLowerCase() == "modules")){
-					for(let module of modules) mdl.appendChild(moduleItem(module));
-				}else{
-					moduleDiv.remove();
-				}
+				
+				for(let module of modules) mdl.appendChild(moduleItem(module));
 			}
 
 			function moduleItem(module){
@@ -142,13 +135,6 @@
 				return item
 			}
 
-			//BOT AVATAR
-
-			function loadBotAvatar(){
-				let img = document.getElementById("bot-icon");
-				img.src = avatar;
-			}
-
 			//PREFIX
 
 			function loadPrefix(){
@@ -161,13 +147,14 @@
 
 				if(input.value.length == 0){
 					input.value = "-";
-					Settings.setPrefix(botIdentifier, "");
+					Settings.setPrefix("");
 					input.blur();
 					return;
 				}
 
-				Settings.setPrefix(botIdentifier, input.value);
+				Settings.setPrefix(input.value);
 				input.blur();
+				showAlert("Bot prefix set to " + input.value);
 			}
 
 			//NICKNAME
@@ -182,13 +169,15 @@
 
 				if(input.value.length == 0){
 					input.value = "-";
-					Settings.setNickname(botIdentifier, "");
+					Settings.setNickname("");
 					input.blur();
+					showAlert("Unset the bots nickname");
 					return;
 				}
 
-				Settings.setNickname(botIdentifier, input.value);
+				Settings.setNickname(input.value);
 				input.blur();
+				showAlert("Bot nickname set to " + input.value);
 			}
 
 			//LOCALE
@@ -204,8 +193,9 @@
 					showAlert("Bot locale can't be set to " + input.value, true);
 					return;
 				}
-				Settings.setLocale(botIdentifier, input.value);
+				Settings.setLocale(input.value);
 				input.blur();
+				showAlert("Bot locale set to " + input.value);
 			}
 
 			//TIMEZONE
@@ -215,7 +205,7 @@
 				input.value = timezone;
 			}
 
-			function setTimezone(){
+			/*function setTimezone(){
 				let input = document.getElementById("timezone");
 
 				if(input.value.lenght == 0){
@@ -225,48 +215,41 @@
 					input.blur();
 					return;
 				}
-			}
+			}*/
 		</script>
 	</head>
 	<body>
-		<div id="box-settings">
+		<div id="bot-settings-outer">
 			<h1>Settings</h1>
 			<a>Customize the nickname, change the prefix or switch your time zone. By let the input fields empty it will be reset to its default value.</a>
-			<div id="bot-settings-outer">
-				<img id="bot-icon" alt="" src="/img/graphite-raw.svg"/>
-				<div id="bot-settings-inner">
-					<div class="settings-item">
-						<a>Text command prefix</a>
-						<a>Choose a unique prefix.</a>
-						<input id="prefix" onchange="setPrefix()"/>
-					</div>
-					<div class="settings-item">
-						<a>Nickname</a>
-						<a>Is Graphite now called bernd? Who knows.</a>
-						<input id="nickname" onchange="setNickname()"/>
-					</div>
-					<div class="settings-item">
-						<a>Bot locale</a>
-						<a>Do you speak german? (de/en/tr)</a>
-						<input id="locale" onchange="setLocale()"/>
-					</div>
-					<div class="settings-item">
-						<a>Timezone</a>
-						<a>Change your timezone</a>
-						<input id="timezone" disabled></input>
-					</div>
+			<div id="bot-settings-inner">
+				<div class="settings-item">
+					<a>Text command prefix:</a>
+					<input id="prefix" onchange="setPrefix()"/>
+				</div>
+				<div class="settings-item">
+					<a>Nickname:</a>
+					<input id="nickname" onchange="setNickname()"/>
+				</div>
+				<div class="settings-item">
+					<a>Bot locale (de/en/tr)</a>
+					<input id="locale" onchange="setLocale()"/>
+				</div>
+				<div class="settings-item">
+					<a>Timezone</a>
+					<input id="timezone" disabled></input>
 				</div>
 			</div>
 		</div>
-		<div id="box-users">
-			<h1>Logged in users</h1>
-			<a>All users that are currently logged in onto your guild's webinterface. Only you as the owner of the guild can see this list.</a>
-			<div id="users"></div>
-		</div>
-		<div id="box-modules">
+		<div id="bot-modules">
 			<h1>Modules</h1>
 			<a>By enabling/disabling modules you can control which features are available to you</a>
 			<div id="modules"></div>
+		</div>
+		<div id="bot-users">
+			<h1>Logged in users</h1>
+			<a>All users that are currently logged in onto your guild's webinterface. Only you as the owner of the guild can see this list.</a>
+			<div id="users"></div>
 		</div>
 	</body>
 </html>

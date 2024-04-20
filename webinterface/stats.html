@@ -12,10 +12,9 @@
 
 			var previewField;
 
-			var dynamicSite;
+			var ui;
 
 			finished(async() => {
-				if(!checkFeatureEnabled('MODERATION')) return;
 				if(!checkModuleEnabled('MODERATION')) return;
 
 				let st = document.getElementById("statistics");
@@ -89,12 +88,12 @@
 					settings = statsSettings[statisticsElement.getID()];
 				}
 
-				dynamicSite = new DynamicSite();
+				ui = new UI();
 				
-				dynamicSite.addHeader(new DynamicSiteHeader()
+				ui.addHeader(new UIHeader()
 					.setTitle("Add chart"));
 
-				let chartTypeField = new DynamicSiteField();
+				let chartTypeField = new UIField();
 				chartTypeField.setTitle("Chart type");
 				let chartTypeDropdown = new UIDropdown();
 				Array.from(StatisticsElementType.values()).forEach(el => {
@@ -104,14 +103,14 @@
 					i.setAttribute("value", el.name());
 					i.onInteract(async () => {
 						selectedChartType = el.name();
-						dynamicSite.removeFields(2, settings.descriptors.length+1);
+						UI.removeFields(2, settings.descriptors.length+1);
 						settings = await StatisticsElementType.createDefaultSettings(el.name());
-						dynamicSite.reloadSettingsDescriptors(settings, () => {
+						UI.reloadSettingsDescriptors(settings, () => {
 							generateStatisticsElementPreview(previewField, el, getGlobalSettings());
 						});
-						previewField = new DynamicSiteField();
+						previewField = new UIField();
 						previewField.setTitle("Preview");
-						dynamicSite.addFieldAtIndex(previewField, settings.descriptors.length+3);
+						UI.addFieldAtIndex(previewField, settings.descriptors.length+3);
 					});
 					chartTypeDropdown.addUIElement(i);
 				});
@@ -121,9 +120,9 @@
 					chartTypeDropdown.selectFirst((element) => selectedChartType = element.getAttribute("value"));
 				}
 				chartTypeField.addUIElement(chartTypeDropdown);
-				dynamicSite.addField(chartTypeField);
+				ui.addField(chartTypeField);
 
-				let cF = new DynamicSiteField();
+				let cF = new UIField();
 				cF.setTitle("Message channel");
 				let channels = new UIDropdown();
 				channels.setPlaceholder("Select stats channel...");
@@ -131,16 +130,16 @@
 				channels.addNewsChannels((newschannel, element) => statisticsElementChannel = newschannel.getID());
 				if(statisticsElement && statisticsElement.getChannelID() != null) channels.findElementByAttribute("value", statisticsElement.getChannelID());
 				cF.addUIElement(channels);
-				dynamicSite.addFieldAtIndex(cF, 2);
+				ui.addFieldAtIndex(cF, 2);
 
-				dynamicSite.fromSettings(settings, () => {
+				ui.fromSettings(settings, () => {
 					let type = StatisticsElementType.valueOf(selectedChartType);
 					generateStatisticsElementPreview(previewField, type, getGlobalSettings());
 				});
 
-				previewField = new DynamicSiteField();
+				previewField = new UIField();
 				previewField.setTitle("Preview");
-				dynamicSite.addFieldAtIndex(previewField, settings.descriptors.length+3);
+				ui.addFieldAtIndex(previewField, settings.descriptors.length+3);
 
 				if(statisticsElement != null) generateStatisticsElementPreview(previewField, statisticsElement.getType(), statisticsElement.getSettings());
 
@@ -176,16 +175,16 @@
 						st.appendChild(statisticElement(el));
 					}
 
-					dynamicSite.close();
+					ui.close();
 				});
 
-				dynamicSite.addField(new DynamicSiteEmptyField()
+				ui.addField(new UIEmptyField()
 					.addUIElement(btn));
 			}
 
 			function changeChartType() {
-				dynamicSite.removeFields(1, settings.descriptors.length);
-				dynamicSite.reloadSettingsDescriptors(settings, () => {
+				ui.removeFields(1, settings.descriptors.length);
+				ui.reloadSettingsDescriptors(settings, () => {
 					generateStatisticsElementPreview(previewField, el, getGlobalSettings());
 				});
 			}

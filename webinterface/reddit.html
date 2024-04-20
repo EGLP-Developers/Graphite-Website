@@ -17,7 +17,6 @@
 			var space = "20px";
 				
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('REDDIT')) return;
 				if(!checkModuleEnabled('REDDIT')) return;
 
 				subreddits = await Subreddit.getSubreddits();
@@ -83,14 +82,14 @@
 			}
 
 			function applySubreddit(subreddit){
-				let dynamicSite = new DynamicSite();
+				let ui = new UI();
 
 				let channelDropdown = new UIDropdown()
 					.addTextChannels((textchannel, element) => selectedChannel = textchannel.getID())
 					.addNewsChannels((newschannel, element) => selectedChannel = newschannel.getID())
 					.selectFirst((element) => selectedChannel = element.getAttribute("value"));
 
-				dynamicSite.addHeader(new DynamicSiteHeader()
+				ui.addHeader(new UIHeader()
 					.setTitle("Add subreddit")
 					.onSave(async () => {
 						let subreddit = document.getElementById("subreddit-input");
@@ -119,22 +118,22 @@
 							subredditsCon.appendChild(subredditItem(user));
 						}
 
-						dynamicSite.close();
+						UI.close();
 						showAlert(dataID == null ? "Successfully added subreddit" : "Successfully edit subreddit");
 					}));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Subreddit")
 					.setSubtitle("About which subreddit we should notify you")
 					.addUIElement(new UIInput()
 						.setID("subreddit-input")
 						.setPlaceholder("Subreddit")));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Notification channel")
 					.addUIElement(channelDropdown));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Embed color")
 					.addUIElement(new UIColorPicker()
 						.setValue(defaultEmbedColor)));
@@ -163,14 +162,11 @@
 		<div class="module-header">
 			<div class="module-text">
 				<h1>Reddit</h1>
-				<a>Get notified of your favorite subreddit</a>
+				<a>Get notified in a predefined channel about your favorite subreddits</a>
 			</div>
 			<a class="disable-module" onclick="disableModule('REDDIT')">Disable</a>
 		</div>
-		<div id="add-subreddit">
-			<a>By adding more subreddits Graphite will send a message in a pre-defined channel of your choice</a>
-			<button onclick="applySubreddit()">Add subreddit</button>
-		</div>
+		<button id="btn-add-subreddit" onclick="applySubreddit()">Add subreddit</button>
 		<div id="added-subreddits">
 			<a>Subreddits</a>
 			<div id="subreddits"></div>

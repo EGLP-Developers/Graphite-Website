@@ -11,7 +11,6 @@
 			var selected = [...RestoreSelector.values()];
 	
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('BACKUPS')) return;
 				if(!checkModuleEnabled('BACKUPS')) return;
 
 				templates = await TempBackup.getTempBackups();
@@ -204,13 +203,13 @@
 			async function templatePreview(templateID){
 				let template = globalTemplates[templateID];
 
-				let dynamicPreview = new DynamicSite();
+				let dynamicPreview = new UI();
 
-				dynamicPreview.addHeader(new DynamicSiteHeader()
+				dynamicPreview.addHeader(new UIHeader()
 					.setTitle("Template")
 					.setSubtitle(template.getName()));
 
-				let f1 = new DynamicSiteField();
+				let f1 = new UIField();
 				f1.setTitle("Channels & Roles");
 				await getTemplateBackupChannels(templateID).then(t => f1.addElement(t));
 				await getTemplateBackupRoles(templateID).then(t => f1.addElement(t));
@@ -228,7 +227,7 @@
 				report.setStyle("background-color: var(--red);");
 				report.onInteract(() => reportTemplate(templateID));
 
-				let btnField = new DynamicSiteEmptyField();
+				let btnField = new UIEmptyField();
 
 				btnField.addUIElement(load);
 				btnField.addUIElement(report);
@@ -266,7 +265,7 @@
 					el.remove();
 					delete globalTemplates[templateID];
 					dialog.close();
-					removeOpenDynamicSites();
+					removeOpenUIs();
 				});
 
 				let btnNo = new UIButton("No");

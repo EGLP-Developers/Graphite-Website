@@ -1,15 +1,10 @@
-#add-user, #added-users{
+#added-users{
 	display: flex;
 	flex-direction: column;
 	margin-top: 30px;
 }
 
-#add-user > a{
-	font-size: 13px;
-	color: #D3D3D3;
-}
-
-#add-user > button{
+#btn-add-twitter-user{
 	border: none;
 	outline: none;
 	text-decoration: none;

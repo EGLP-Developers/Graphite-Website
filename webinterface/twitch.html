@@ -13,7 +13,6 @@
 			var strContainer = document.getElementById("streamer");
 
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('TWITCH')) return;
 				if(!checkModuleEnabled('TWITCH')) return;
 
 				defaultMessage = await TwitchUser.getDefaultTwitchNotificationMessage();
@@ -58,40 +57,6 @@
 				actions.classList.add("streamer-actions");
 				strItem.appendChild(actions);
 
-				/*Maybe add 3024
-				
-				if(str.isLive()){
-					let renotify = document.createElement("a");
-					renotify.text = "Renotify";
-					renotify.addEventListener('click', () => {
-						event.stopPropagation();
-						
-						let dialog = new Dialog();
-
-						dialog.addHeader(new DialogHeader()
-							.setTitle("Renotify user")
-							.setSubtitle("Resend a new notification to notify new member that this streamer is currently streaming"));
-
-						let btnYes = new UIButton("Yes");
-						btnYes.setStyle("background-color: var(--green);");
-						btnYes.onInteract(() => {
-							TwitchUser.sendTwitchAnnouncement(str.getID());
-							dialog.close();
-							showAlert("Announcement send");
-						});
-
-						let btnNo = new UIButton("No");
-						btnNo.setStyle("background-color: rgba(255, 255, 255, .1);");
-						btnNo.onInteract(() => dialog.close());
-
-						dialog.addField(new DialogEmptyField()
-							.addUIElement(btnYes)
-							.addUIElement(btnNo)
-							.setStyle("flex-direction: row;"));
-					});
-					actions.appendChild(renotify);
-				}*/
-
 				let delImage = document.createElement("img");
 				delImage.setAttribute("src", "../img/trash.svg");
 				delImage.addEventListener('click', async () => {
@@ -128,14 +93,14 @@
 			}
 
 			function applyStreamer(strID){
-				let dynamicSite = new DynamicSite();
+				let ui = new UI();
 
 				let channelDropdown = new UIDropdown()
 					.addTextChannels((textchannel, element) => selectedChannel = textchannel.getID())
 					.addNewsChannels((newschannel, element) => selectedChannel = newschannel.getID())
 					.selectFirst((element) => selectedChannel = element.getAttribute("value"));
 
-				dynamicSite.addHeader(new DynamicSiteHeader()
+				ui.addHeader(new UIHeader()
 					.setTitle("Add streamer")
 					.onSave(async () => {
 						let streamerInput = document.getElementById("streamer-input");
@@ -174,34 +139,34 @@
 							strContainer.appendChild(streamerItem(streamer));
 						}
 
-						dynamicSite.close();
+						ui.close();
 						showAlert(dataID == null ? "Successfully added streamer" : "Successfully edit streamer");
 					}));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Streamer")
 					.setSubtitle("About which streamer we should notify you")
 					.addUIElement(new UIInput()
 						.setID("streamer-input")
 						.setPlaceholder("Please enter a streamer...")));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Notification channel")
 					.addUIElement(channelDropdown));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Embed color")
 					.addUIElement(new UIColorPicker()
 						.setValue(defaultEmbedColor)));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Notification message")
 					.setSubtitle("Valid options: {streamer}, {link}")
 					.addUIElement(new UITextInput()
 						.setID("message")
 						.setValue(defaultMessage)));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Additional options")
 					.setSubtitle("Which information should be shown")
 					.addUIElements(parameters.map(parameter => {
@@ -247,14 +212,11 @@
 		<div class="module-header">
 			<div class="module-text">
 				<h1>Twitch</h1>
-				<a>Get notified if one or more of your favorite streamer(s) go live</a>
+				<a>Get notified in a predefined channel if your favorite streamer or streamerin goes live.</a>
 			</div>
 			<a class="disable-module" onclick="disableModule('TWITCH')">Disable</a>
 		</div>
-		<div id="add-channel">
-			<a>By adding more channels Graphite will send a message in a pre-defined channel of your choice</a>
-			<button onclick="applyStreamer()">Add channel</button>
-		</div>
+		<button id="btn-apply-streamer" onclick="applyStreamer()">Add channel</button>
 		<div id="added-channels">
 			<a>Streamer</a>
 			<div id="streamer"></div>

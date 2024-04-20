@@ -61,12 +61,9 @@ button:disabled{
 }
 
 .disable-module{
-  content: url("/img/locked.svg");
-  width: 18px;
-  height: 18px;
   background-color: var(--red);
-  border-radius: 100%;
-  padding: 10px;
+  border-radius: 5px;
+  padding: 7px 15px;
   color: #fff;
   cursor: pointer;
   font-size: 14px;

@@ -1,15 +1,10 @@
-#add-subreddit, #added-subreddits{
+#added-subreddits{
 	display: flex;
 	flex-direction: column;
 	margin-top: 30px;
 }
 
-#add-subreddit > a{
-	font-size: 13px;
-	color: #D3D3D3;
-}
-
-#add-subreddit > button{
+#btn-add-subreddit{
 	border: none;
 	outline: none;
 	text-decoration: none;

@@ -9,7 +9,6 @@
 			var currentCommand = null;
 
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('SCRIPTING')) return;
 				if(!checkModuleEnabled('SCRIPTING')) return;
 				
 				scripts = await Script.getScripts();

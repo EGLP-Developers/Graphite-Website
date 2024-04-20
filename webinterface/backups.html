@@ -13,7 +13,6 @@
 			var selected = [...RestoreSelector.values()];
 	
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('BACKUPS')) return;
 				if(!checkModuleEnabled('BACKUPS')) return;
 
 				backups = await Backup.getBackups();
@@ -241,13 +240,13 @@
 			async function backupPreview(backupName){
 				let backup = globalBackups[backupName];
 
-				let dynamicPreview = new DynamicSite();
+				let dynamicPreview = new UI();
 
-				dynamicPreview.addHeader(new DynamicSiteHeader()
+				dynamicPreview.addHeader(new UIHeader()
 					.setTitle("Backup")
 					.setSubtitle(backupName));
 
-				let fRename = new DynamicSiteField();
+				let fRename = new UIField();
 				fRename.setTitle("Rename backup")
 				let rename = new UIInput();
 				rename.setValue(backupName);
@@ -272,7 +271,7 @@
 				fRename.addUIElement(rename);
 				dynamicPreview.addField(fRename);
 
-				let f1 = new DynamicSiteField();
+				let f1 = new UIField();
 				f1.setTitle("Channels & Roles");
 				await getBackupChannels(backupName).then(t => f1.addElement(t));
 				await getBackupRoles(backupName).then(t => f1.addElement(t));
@@ -305,7 +304,7 @@
 				publish.setStyle("background-color: var(--blue)");
 				publish.onInteract(() => publishPreview(backupName));
 
-				dynamicPreview.addField(new DynamicSiteEmptyField()
+				dynamicPreview.addField(new UIEmptyField()
 					.addUIElement(restore)
 					.addUIElement(publish)
 					.setStyle("flex-direction: row;"));
@@ -349,7 +348,7 @@
 					}
 					await TempBackup.createTemplateBackup(backupName, gName.getValue(), inp.getValue());
 					dialog.close();
-					removeOpenDynamicSites();
+					removeOpenUIs();
 					showAlert("Successfully created template");
 				});
 
@@ -451,7 +450,7 @@
 				restore.onInteract(() => {
 					Backup.restoreBackup(backupName, decryptionKeyDrop.getAttribute("decryption-key"), selected.map(r => r.name()));
 					dialog.close();
-					removeOpenDynamicSites();
+					removeOpenUIs();
 				});
 
 				dialog.addField(new DialogEmptyField()

@@ -25,7 +25,6 @@
 			var modroleContainer = document.getElementById("mod-roles");
 
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('MODERATION')) return;
                 if(!checkModuleEnabled('MODERATION')) return;
 
                 modroles = await Moderator.getModeratorRoles();
@@ -229,12 +228,12 @@
             async function getChatHistoryFor(chatreportID, key){
                 let history = await ChatReport.getChatReportHistory(chatreportID, key);
 
-                let d = new DynamicSite();
+                let d = new UI();
 
-                d.addHeader(new DynamicSiteHeader()
+                d.addHeader(new UIHeader()
                     .setTitle("Chat history"));
 
-                let field = new DynamicSiteEmptyField();
+                let field = new UIEmptyField();
 
                 for(let message of history){
                     let item = document.createElement("div");

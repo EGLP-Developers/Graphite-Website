@@ -1,20 +1,20 @@
-#box-modules, #box-settings, #box-users{
+#bot-modules, #bot-users{
     display: flex;
     flex-direction: column;
     width: 100%;
 }
 
-#box-modules, #box-users{
+#bot-modules, #bot-users{
     margin-top: 50px;
 }
 
-#box-modules > h1, #box-settings > h1, #box-users > h1{
+#bot-modules > h1, #bot-users > h1{
 	font-size: 14px;
 	color: #fff;
 	margin: 0 0 10px 0;
 }
 
-#box-modules > a, #box-settings > a, #box-users > a{
+#bot-modules > a, #bot-users > a{
 	margin-bottom: 30px;
 	color: var(--semi-white);
 	font-size: 13px;
@@ -36,53 +36,43 @@
     gap: 20px;
 }
 
-/*NEU*/
+/*SETTINGS*/
 
 #bot-settings-outer{
-    display: grid;
-    grid-template-columns: 64px calc(100% - 79px);
-    gap: 15px;
-    padding: 15px;
-    border-radius: 3px;
-	background-color: var(--primary-color);
+    display: flex;
+    flex-direction: column;
 }
 
-#bot-icon{
-    display: flex;
-    width: 64px;
-    height: 64px;
-    border-radius: 5px;
+#bot-settings-outer > h1{
+	font-size: 14px;
+	color: #fff;
+	margin: 0 0 10px 0;
+}
+
+#bot-settings-outer > a{
+	color: var(--semi-white);
+	font-size: 13px;
 }
 
 #bot-settings-inner{
     display: flex;
-    flex-direction: column;
+    margin-top: 30px;
+    gap: 20px;
 }
 
 .settings-item{
     display: flex;
     flex-direction: column;
     color: #fff;
-    margin-bottom: 30px;
-}
-
-.settings-item:last-of-type{
-    margin-bottom: unset;
-}
-
-.settings-item > a:first-of-type{
+    margin-bottom: 10px;
     font-size: 14px;
-    font-weight: bold;
-    margin-bottom: 3px;
-}
-
-.settings-item > a:last-of-type{
-    font-size: 13px;
 }
 
 .settings-item > input{
     border: none;
-    background-color: transparent;
+    border-radius: 5px;
+    padding: 7px 15px;
+    background-color: var(--primary-color);
     color: #fff;
     margin-top: 5px;
     outline: none;

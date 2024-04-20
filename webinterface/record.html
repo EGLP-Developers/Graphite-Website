@@ -15,7 +15,6 @@
 			var isRecording;
 
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('RECORD')) return;
 				if(!checkModuleEnabled('RECORD')) return;
 
 				isRecording = await AudioRecording.isRecording();

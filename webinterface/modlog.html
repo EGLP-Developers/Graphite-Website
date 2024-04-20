@@ -8,7 +8,6 @@
 			var modlogUsers = {};
 
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('MODERATION')) return;
 				if(!checkModuleEnabled('MODERATION')) return;
 
 				modlogEntries = await ModLog.getModLogEntries();

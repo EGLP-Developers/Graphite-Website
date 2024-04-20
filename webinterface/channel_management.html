@@ -8,7 +8,6 @@
 			var globalAutoChannels = {};
 	
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('CHANNEL_MANAGEMENT')) return;
 				if(!checkModuleEnabled('CHANNEL_MANAGEMENT')) return;
 
 				rawAutoChannels = await AutoChannel.getAutoChannels();

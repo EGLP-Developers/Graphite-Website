@@ -1,15 +1,10 @@
-#add-channel, #added-channels{
+#added-channels{
 	display: flex;
 	flex-direction: column;
 	margin-top: 30px;
 }
 
-#add-channel > a{
-	font-size: 13px;
-	color: #D3D3D3;
-}
-
-#add-channel > button{
+#btn-apply-streamer{
 	border: none;
 	outline: none;
 	text-decoration: none;

@@ -15,8 +15,6 @@
 			var con = document.getElementById("customcommands");
 	
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('CUSTOM_COMMANDS')) return;
-
 				customCommands = await CustomCommand.getCustomCommands();
 
 				customCommands.sort(function(a, b) {
@@ -479,7 +477,7 @@
 			async function editCustomCommand(command){
 				edit = true;
 
-				customCommandDynamicSite();
+				customCommandUI();
 
 				let nameInput = document.getElementById("name");
 				let permissionInput = document.getElementById("permission");
@@ -608,15 +606,15 @@
 				currentCommand.setActions([]);
 			}
 
-			function customCommandDynamicSite(){
-				let dynamicSite = new DynamicSite();
+			function customCommandUI(){
+				let ui = new UI();
 
-				dynamicSite.addHeader(new DynamicSiteHeader()
+				ui.addHeader(new UIHeader()
 					.setTitle((edit ? "Edit" : "Create") + " CustomCommand")
 					.onSave(async () => {
 						let canBeSaved = await saveCustomCommand();
 						if(canBeSaved) {
-							dynamicSite.close();
+							UI.close();
 							edit = false;
 						}
 					})
@@ -626,17 +624,17 @@
 						edit = false;
 					}));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Command name")
 					.addUIElement(new UIInput()
 						.setID("name")));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Command permission")
 					.addUIElement(new UIInput()
 						.setID("permission")));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Command actions")
 					.addUIElement(new UIButton("+")
 						.setStyle("background-color: var(--primary-color); padding: 10.5px 15px; font-weight: bold;")
@@ -655,7 +653,7 @@
 		<div id="customcommand-center">
 			<h1 class="main-title">Custom Commands</h1>
 			<div class="customcommand-actions">
-				<a id="create-command" onclick="customCommandDynamicSite()">New</a>
+				<a id="create-command" onclick="customCommandUI()">New</a>
 				<a id="delete-all-commands" onclick="deleteAllCommands()">Delete all</a>
 			</div>
 			<div id="customcommands"></div>

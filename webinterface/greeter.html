@@ -7,7 +7,6 @@
 			var info;
 	
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('GREETER')) return;
 				if(!checkModuleEnabled('GREETER')) return;
 
 				info = await Greeter.getGreeterInfo();

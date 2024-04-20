@@ -16,7 +16,6 @@
 			var space = "20px";
 				
 			baseLoaded(async() => {
-				if(!checkFeatureEnabled('TWITTER')) return;
 				if(!checkModuleEnabled('TWITTER')) return;
 
 				twitterUsers = await TwitterUser.getTwitterUsers();
@@ -92,14 +91,14 @@
 			}
 
 			function applyTwitterUser(usrID){
-				let dynamicSite = new DynamicSite();
+				let ui = new UI();
 
 				let channelDropdown = new UIDropdown()
 					.addTextChannels((textchannel, element) => selectedChannel = textchannel.getID())
 					.addNewsChannels((newschannel, element) => selectedChannel = newschannel.getID())
 					.selectFirst((element) => selectedChannel = element.getAttribute("value"));
 
-				dynamicSite.addHeader(new DynamicSiteHeader()
+					ui.addHeader(new UIHeader()
 					.setTitle("Add twitter user")
 					.onSave(async () => {
 						let usr = document.getElementById("twitter-user-input");
@@ -128,22 +127,22 @@
 							strContainer.appendChild(twitterUserItem(user));
 						}
 
-						dynamicSite.close();
+						UI.close();
 						showAlert(dataID == null ? "Successfully added twitter user" : "Successfully edit twitter user");
 					}));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Twitter user")
 					.setSubtitle("About which twitter user we should notify you")
 					.addUIElement(new UIInput()
 						.setID("twitter-user-input")
 						.setPlaceholder("Twitter username...")));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Notification channel")
 					.addUIElement(channelDropdown));
 
-				dynamicSite.addField(new DynamicSiteField()
+				ui.addField(new UIField()
 					.setTitle("Embed color")
 					.addUIElement(new UIColorPicker()
 						.setValue(defaultEmbedColor)));
@@ -172,14 +171,11 @@
 		<div class="module-header">
 			<div class="module-text">
 				<h1>Twitter</h1>
-				<a>Get notified if one or more of your favorite Twitter users post something new</a>
+				<a>Get notified in a predefined channel if one or more of your favorite Twitter users post something new</a>
 			</div>
 			<a class="disable-module" onclick="disableModule('TWITTER')">Disable</a>
 		</div>
-		<div id="add-user">
-			<a>By adding more users Graphite will send a message in a pre-defined channel of your choice</a>
-			<button onclick="applyTwitterUser()">Add user</button>
-		</div>
+		<button id="btn-add-twitter-user" onclick="applyTwitterUser()">Add user</button>
 		<div id="added-users">
 			<a>Twitter user</a>
 			<div id="users"></div>

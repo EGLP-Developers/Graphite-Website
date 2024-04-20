@@ -5,53 +5,53 @@ link.type = 'text/css';
 link.href = 'js/css/dynamic-site.css';  
 head.appendChild(link);
 
-class DynamicSite{
-	dynamicSiteOuter;
-	dynamicSiteInner;
+class UI{
+	UIOuter;
+	UIInner;
 
 	constructor(){
-		let dynamicSiteOuter = document.createElement("div");
-        dynamicSiteOuter.classList.add("dynamic-site-outer");
-		this.dynamicSiteOuter = dynamicSiteOuter;
+		let UIOuter = document.createElement("div");
+        UIOuter.classList.add("dynamic-site-outer");
+		this.UIOuter = UIOuter;
 
-		let dynamicSiteInner = document.createElement("div");
-        dynamicSiteInner.classList.add("dynamic-site-inner");
-		this.dynamicSiteInner = dynamicSiteInner;
-		dynamicSiteOuter.appendChild(dynamicSiteInner);
+		let UIInner = document.createElement("div");
+        UIInner.classList.add("dynamic-site-inner");
+		this.UIInner = UIInner;
+		UIOuter.appendChild(UIInner);
 
 		let docBody = document.querySelector("body");
 
-		docBody.appendChild(dynamicSiteOuter);
+		docBody.appendChild(UIOuter);
 
 		return this;
 	}
 
 	addHeader(header){
-		if(!header instanceof DynamicSiteHeader) throw new Error("Header must be of type " + DynamicSiteHeader.name);
+		if(!header instanceof UIHeader) throw new Error("Header must be of type " + UIHeader.name);
 
-		this.dynamicSiteInner.appendChild(header.build());
+		this.UIInner.appendChild(header.build());
 		
 		return this;
 	}
 
 	addField(field){
-		if(!field instanceof DynamicSiteField) throw new Error("Field must be of type " + DynamicSiteField.name);
+		if(!field instanceof UIField) throw new Error("Field must be of type " + UIField.name);
 
-		this.dynamicSiteInner.appendChild(field.build());
+		this.UIInner.appendChild(field.build());
 
 		return this;
 	}
 
 	addFieldAtIndex(field, idx){
-		if(!field instanceof DynamicSiteField) throw new Error("Field must be of type " + DialogField.name);
+		if(!field instanceof UIField) throw new Error("Field must be of type " + DialogField.name);
 
-		this.dynamicSiteInner.insertBefore(field.build(), this.dynamicSiteInner.children[idx]);
+		this.UIInner.insertBefore(field.build(), this.UIInner.children[idx]);
 
 		return this;
 	}
 
 	removeFields(skip, end){
-		let fields = this.dynamicSiteInner.getElementsByClassName("dynamic-site-field");
+		let fields = this.UIInner.getElementsByClassName("dynamic-site-field");
 		let array = Array.from(fields);
 		if(skip != null && end == null) array = array.splice(skip);
 		if(skip != null && end != null) array = array.splice(skip, end);
@@ -59,8 +59,8 @@ class DynamicSite{
 	}
 
 	close(){
-		let dynamicSites = document.getElementsByClassName("dynamic-site-outer");
-		Array.from(dynamicSites).forEach(dS => dS.remove());
+		let UIs = document.getElementsByClassName("dynamic-site-outer");
+		Array.from(UIs).forEach(dS => dS.remove());
 	}
 
 	reloadSettingsDescriptors(settings, onChange){
@@ -69,7 +69,7 @@ class DynamicSite{
 
 		let t = 3;
 		for(let descriptor of descriptors){
-			let f = getDynamicSiteDescriptorField(descriptor, value => {
+			let f = getUIDescriptorField(descriptor, value => {
 				if(descriptor.getType() == SettingType.MAP){
 					Object.assign(globalSettings[descriptor.getName()], value);
 				}else if(descriptor.getType() == SettingType.LIST){
@@ -92,8 +92,8 @@ class DynamicSite{
 
 	asMap(descriptor, callback){
 		let tmpEntry = {};
-		this.addField(getDynamicSiteDescriptorField(descriptor.getKeyDescriptor(), key => tmpEntry.key = key));
-		this.addField(getDynamicSiteDescriptorField(descriptor.getValueDescriptor(), value => {
+		this.addField(getUIDescriptorField(descriptor.getKeyDescriptor(), key => tmpEntry.key = key));
+		this.addField(getUIDescriptorField(descriptor.getValueDescriptor(), value => {
 			tmpEntry.value = (descriptor.getValueDescriptor().getType() == SettingType.COLOR ? hexToDecimal(value) : value);
 		}));
 
@@ -123,51 +123,51 @@ class DynamicSite{
 		cancel.setStyle("background-color: rgba(255, 255, 255, 0.1);");
 		cancel.onInteract(() => this.close());
 
-		this.addField(new DynamicSiteEmptyField()
+		this.addField(new UIEmptyField()
 			.addUIElement(add)
 			.addUIElement(cancel)
 			.setStyle("flex-direction: row;"));
 	}
 }
 
-class DynamicSiteHeader{
-	dynamicSiteHeader;
-	dynamicSiteHeaderText;
-	dynamicSiteHeaderRight;
-	dynamicSiteBack;
+class UIHeader{
+	UIHeader;
+	UIHeaderText;
+	UIHeaderRight;
+	UIBack;
 
 	constructor(){
-		let dynamicSiteHeader = document.createElement("div");
-		dynamicSiteHeader.classList.add("dynamic-site-header");
-		this.dynamicSiteHeader = dynamicSiteHeader;
+		let UIHeader = document.createElement("div");
+		UIHeader.classList.add("dynamic-site-header");
+		this.UIHeader = UIHeader;
 
-		let dynamicSiteHeaderLeft = document.createElement("div");
-		dynamicSiteHeaderLeft.classList.add("dynamic-site-header-left");
-		dynamicSiteHeader.appendChild(dynamicSiteHeaderLeft);
+		let UIHeaderLeft = document.createElement("div");
+		UIHeaderLeft.classList.add("dynamic-site-header-left");
+		UIHeader.appendChild(UIHeaderLeft);
 
-		let dynamicSiteBack = document.createElement("button");
-		dynamicSiteBack.classList.add("dynamic-site-header-back");
-		dynamicSiteBack.innerText = "✖";
-		dynamicSiteBack.addEventListener('click', () => {
-			let dynamicSites = document.getElementsByClassName("dynamic-site-outer");
-			Array.from(dynamicSites).forEach(dS => dS.remove());
+		let UIBack = document.createElement("button");
+		UIBack.classList.add("dynamic-site-header-back");
+		UIBack.innerText = "✖";
+		UIBack.addEventListener('click', () => {
+			let UIs = document.getElementsByClassName("dynamic-site-outer");
+			Array.from(UIs).forEach(dS => dS.remove());
 		});
-		this.dynamicSiteBack = dynamicSiteBack;
-		dynamicSiteHeaderLeft.appendChild(dynamicSiteBack);
+		this.UIBack = UIBack;
+		UIHeaderLeft.appendChild(UIBack);
 
-		let dynamicSiteHeaderText = document.createElement("div");
-		dynamicSiteHeaderText.classList.add("dynamic-site-header-text");
-		this.dynamicSiteHeaderText = dynamicSiteHeaderText;
-		dynamicSiteHeaderLeft.appendChild(dynamicSiteHeaderText);
+		let UIHeaderText = document.createElement("div");
+		UIHeaderText.classList.add("dynamic-site-header-text");
+		this.UIHeaderText = UIHeaderText;
+		UIHeaderLeft.appendChild(UIHeaderText);
 
-		let dynamicSiteHeaderRight = document.createElement("div");
-		dynamicSiteHeaderRight.classList.add("dynamic-site-header-right");
-		dynamicSiteHeader.appendChild(dynamicSiteHeaderRight);
-		this.dynamicSiteHeaderRight = dynamicSiteHeaderRight;
+		let UIHeaderRight = document.createElement("div");
+		UIHeaderRight.classList.add("dynamic-site-header-right");
+		UIHeader.appendChild(UIHeaderRight);
+		this.UIHeaderRight = UIHeaderRight;
 	}
 
 	x(callback){
-		this.dynamicSiteBack.addEventListener('click', () => callback());
+		this.UIBack.addEventListener('click', () => callback());
 		return this;
 	}
 
@@ -177,7 +177,7 @@ class DynamicSiteHeader{
 		let el = document.createElement("a");
 		el.classList.add("dynamic-site-title");
 		el.text = title;
-		this.dynamicSiteHeaderText.appendChild(el);
+		this.UIHeaderText.appendChild(el);
 
 		return this;
 	}
@@ -188,7 +188,7 @@ class DynamicSiteHeader{
 		let el = document.createElement("a");
 		el.classList.add("dynamic-site-subtitle");
 		el.text = subtitle
-		this.dynamicSiteHeaderText.appendChild(el);
+		this.UIHeaderText.appendChild(el);
 
 		return this;
 	}
@@ -200,17 +200,17 @@ class DynamicSiteHeader{
 		saveBtn.addEventListener('click', () => {
 			callback();
 		});
-		this.dynamicSiteHeaderRight.appendChild(saveBtn);
+		this.UIHeaderRight.appendChild(saveBtn);
 
 		return this;
 	}
 
 	build(){
-		return this.dynamicSiteHeader;
+		return this.UIHeader;
 	}
 }
 
-class DynamicSiteField{
+class UIField{
 	field;
 	fieldHeader;
 	fieldHeaderText;
@@ -310,7 +310,7 @@ class DynamicSiteField{
 	}
 }
 
-class DynamicSiteEmptyField{
+class UIEmptyField{
 	field;
 	fieldBody;
 
@@ -359,8 +359,8 @@ class DynamicSiteEmptyField{
 	}
 }
 
-function getDynamicSiteDescriptorField(descriptor, callback){
-	let f = new DynamicSiteField();
+function getUIDescriptorField(descriptor, callback){
+	let f = new UIField();
 	f.setTitle(descriptor.getFriendlyName());
 	let value = globalSettings[descriptor.getName()];
 	switch(descriptor.getType()){

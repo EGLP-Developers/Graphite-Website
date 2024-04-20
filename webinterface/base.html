@@ -23,7 +23,7 @@
 		<script src="js/alerts.js"></script>
 		<script src="js/dialog.js"></script>
 		<script src="js/embed.js"></script>
-		<script src="js/dynamic_site.js"></script>
+		<script src="js/UI.js"></script>
 
 		<script>
 			var user = null;
@@ -40,12 +40,8 @@
 			var members = [];
 			var categories = [];
 			var isAboveUserRoles = false;
-			var availableBots;
-			var botIdentifier;
 			var modlogEntries = [];
 			var mLE;
-			var enabledFeatures = [];
-			var permittedFeatures = [];
 			var baseLoadDone = false;
 			var baseLoadCallback;
 			var loggedIn = [];
@@ -95,11 +91,7 @@
 				permittedGuilds = await WebinterfaceGuild.getPermittedGuilds();
 				isAboveUserRoles = await Bot.isAboveUserRoles();
 				if(isGuildAdmin) loggedIn = await Bot.getLoggedInUsers();
-
-				availableBots = await Bot.getAvailableBots();
-				botIdentifier = availableBots[0].getIdentifier();
-				Webinterface.setDefaultBot(botIdentifier);
-				if(isGuildAdmin) settings = await Settings.getSettings(botIdentifier);
+				if(isGuildAdmin) settings = await Settings.getSettings();
 
 				await loadNavigation();
 
@@ -114,9 +106,6 @@
 			});
 
 			async function loadNavigation(){
-				enabledFeatures = await Feature.getAvailableFeatures();
-				permittedFeatures = await Feature.getPermittedFeatures();
-
 				let possiblyUnavailable = document.getElementsByClassName("possibly-unavailable");
 				Array.from(possiblyUnavailable).forEach(i => {
 					let hide = false;
@@ -126,16 +115,6 @@
 
 					if(i.getAttribute("require-admin") == "true" && !isGuildAdmin){
 						hide = true;
-					}
-
-					if(i.getAttribute("required-feature") != null) {
-						if(!enabledFeatures.some(f => f.name().toLowerCase() == i.getAttribute("required-feature").toLowerCase())){
-							hide = true;
-						}
-
-						if(!permittedFeatures.some(f => f.name().toLowerCase() == i.getAttribute("required-feature").toLowerCase())){
-							hide = true;
-						}
 					}
 					
 					if(hide) {
@@ -181,18 +160,6 @@
 				return true;
 			}
 
-			function checkFeatureEnabled(feature, redirect = true){
-				let success = true;
-				if(!enabledFeatures.some(f => f.name().toLowerCase() == feature.toLowerCase())){
-					success = false;
-				}
-				if(!permittedFeatures.some(f => f.name().toLowerCase() == feature.toLowerCase())){
-					success = false;
-				}
-				if(!success && redirect) redirectToDashboard();
-				return success;
-			}
-
 			function checkGuildAdmin(){
 				if(!isGuildAdmin){
 					redirectToDashboard();
@@ -209,13 +176,13 @@
 				return true;
 			}
 
-			function removeOpenDynamicSites(){
-				let dynamicSites = document.getElementsByClassName("dynamic-site-outer");
-				Array.from(dynamicSites).forEach(site => site.remove());
+			function removeOpenUIs(){
+				let uis = document.getElementsByClassName("dynamic-site-outer");
+				Array.from(uis).forEach(site => site.remove());
 			}
 
 			function redirect(clicked, page){
-				removeOpenDynamicSites();
+				removeOpenUIs();
 				if(clicked != null && clicked.getAttribute("module") != null) {
 					let resp = modules.find(m => m.id == clicked.getAttribute("module").toUpperCase());
 					if(resp == null) return;
@@ -301,28 +268,10 @@
 				dialog.addHeader(new DialogHeader()
 					.setTitle("Settings"));
 
-				if(isGuildAdmin){
-					let botDropdown = new UIDropdown()
-						.addUIElements(availableBots.map(bot => new UIDropdownElement()
-							.setAttribute("value", bot.getIdentifier())
-							.addText(bot.getIdentifier())
-							.onInteract(() => {
-								Webinterface.setDefaultBot(bot.getIdentifier());
-								loadNavigation();
-								redirectToDashboard();
-							})));
-
-					botDropdown.findElementByAttribute("value", botIdentifier);
-
-					dialog.addField(new DialogField()
-						.setTitle("Bot")
-						.addUIElement(botDropdown));
-				}
-
 				/*Scrollbars*/
 
 				let scrollbars = new UICheckboxWithText();
-				scrollbars.setText("Enable/Disable scrollbars")
+				scrollbars.setText("Show scrollbars")
 				scrollbars.getCheckboxInput().checked = scrollbarsEnabled;
 				scrollbars.onInteract(() => {
 					if(scrollbarsEnabled){
@@ -344,7 +293,7 @@
 				if(isGuildAdmin){
 					let textBasedCommands = new UICheckboxWithText();
 					textBasedCommands.setID("text-based-commands");
-					textBasedCommands.setText("Enable/Disable text-based commands");
+					textBasedCommands.setText("Use text-based commands");
 					textBasedCommands.getCheckboxInput().checked = settings.getEnableTextCommands();
 					textBasedCommands.onInteract((elem) => Settings.setEnableTextCommands(elem.checked));
 
@@ -373,6 +322,7 @@
 		<div id="navigation-menue">
 			<div id="navigation-header">
 				<a id="bot-title">Graphite</a>
+				<img src="/img/settings.svg" onclick="settingsDialog()"/>
 			</div>
 			<div id="navigation-content">
 				<div class="navigation-section">
@@ -488,11 +438,6 @@
 				</div>
 			</div>
 			<div id="navigation-footer">
-				<!--<div id="bots"></div>-->
-				<div id="settings">
-					<a>Settings</a>
-					<img src="/img/arrow.svg" onclick="settingsDialog()"/>
-				</div>
 				<div id="server">
 					<a id="selected-server"></a>
 					<img src="/img/arrow.svg" onclick="redirectFromFile('../webinterface')"/>

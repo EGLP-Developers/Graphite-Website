@@ -65,12 +65,12 @@
 			}
 
 			function taskList(){
-				let site = new DynamicSite();
+				let site = new UI();
 
-				site.addHeader(new DynamicSiteHeader()
+				site.addHeader(new UIHeader()
 					.setTitle("Task list"));
 
-				let emptyField = new DynamicSiteEmptyField();
+				let emptyField = new UIEmptyField();
 
 				for(let task of tasks){
 					let item = document.createElement("div");
