@@ -299,12 +299,11 @@ input[type="range"]:active::-ms-thumb {
 }
 
 .record{
-	content: url("/img/record.svg");
 	width: 18px;
 	height: 18px;
 	background-color: var(--green);
-	border-radius: 100%;
-	padding: 10px;
+	padding: 7px 15px;
+	border-radius: 5px;
 	color: #fff;
 	cursor: pointer;
 	font-size: 14px;

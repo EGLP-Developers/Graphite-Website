@@ -10,19 +10,9 @@
 			finished(async() => {
 				//ADMIN CHECK
 				if(!isGuildAdmin) {
-					$("#box-settings").remove();
-					$("#box-users").remove();
-					$("#box-modules").remove();
-
-					let cCon = document.getElementById("content-container");
-					let unavailable = document.createElement("div");
-					unavailable.id = "unavailable";
-
-					let text = document.createElement("h1");
-					text.innerText = "YOU DON'T HAVE ACCESS TO THIS TAB";
-					unavailable.appendChild(text);
-
-					cCon.appendChild(unavailable);
+					$("#bot-settings-outer").remove();
+					$("#bot-users").remove();
+					$("#bot-modules").remove();
 					return;
 				}
 
