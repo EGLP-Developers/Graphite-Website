@@ -58,7 +58,7 @@
 			$key = getenv("GRAPHITE_WEBSITE_ENDPOINT_KEY");
 			if($requestData == null) $requestData = (object) null;
 			$sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-			if(socket_connect($sock, '127.0.0.1', intval(getenv("GRAPHITE_WEBSITE_ENDPOINT_PORT")))){
+			if(socket_connect($sock, getenv("GRAPHITE_WEBSITE_ENDPOINT_HOST"), intval(getenv("GRAPHITE_WEBSITE_ENDPOINT_PORT")))){
 				Tools::writeString($sock, $key);
 				$arr = array();
 				$arr["type"] = $requestType;
